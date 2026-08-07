@@ -156,7 +156,7 @@ export interface AgentSessionView_01Props {
 }
 
 export function AgentSessionView_01({
-  preConnectMessage = 'Agent is listening, ask it a question',
+  preConnectMessage = 'Vidya is listening — ask a question or say what you\'d like to learn',
   supportsChatInput = true,
   supportsVideoInput = true,
   supportsScreenShare = true,

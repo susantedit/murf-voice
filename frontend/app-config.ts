@@ -33,40 +33,29 @@ export interface AppConfig {
 }
 
 export const APP_CONFIG_DEFAULTS: AppConfig = {
-  companyName: 'Murf AI',
-  pageTitle: 'Voice Agent Starter',
-  pageDescription: 'A voice agent powered by Murf Falcon — the fastest TTS API',
+  companyName: 'Vidya',
+  pageTitle: 'Vidya — Your Voice Learning Assistant',
+  pageDescription: 'Learn, practice, and revise with Vidya — a friendly AI voice tutor powered by Murf Falcon.',
 
   supportsChatInput: true,
-  supportsVideoInput: true,
-  supportsScreenShare: true,
+  supportsVideoInput: false,
+  supportsScreenShare: false,
   isPreConnectBufferEnabled: true,
 
   logo: '/murf-logo.svg',
-  accent: '#6366F1',
   logoDark: '/murf-logo-dark.svg',
+  accent: '#6366F1',
   accentDark: '#818cf8',
-  startButtonText: 'Start talking',
+  startButtonText: 'Start Learning',
 
-  // optional: audio visualization configuration
-  // audioVisualizerType: 'bar',
-  // audioVisualizerColor: '#002cf2',
-  // audioVisualizerColorDark: '#1fd5f9',
-  // audioVisualizerColorShift: 0.3,
-  // audioVisualizerBarCount: 5,
-  // audioVisualizerType: 'radial',
-  // audioVisualizerRadialBarCount: 24,
-  // audioVisualizerRadialRadius: 100,
-  // audioVisualizerType: 'grid',
-  // audioVisualizerGridRowCount: 25,
-  // audioVisualizerGridColumnCount: 25,
-  // audioVisualizerType: 'wave',
-  // audioVisualizerWaveLineWidth: 3,
-  // audioVisualizerType: 'aura',
+  // Wave visualizer — clean, educational feel
+  audioVisualizerType: 'aura',
+  audioVisualizerColor: '#6366F1',
+  audioVisualizerColorDark: '#818cf8',
+  audioVisualizerColorShift: 0.4,
 
-  // agent dispatch configuration
+  // agent dispatch
   agentName: process.env.AGENT_NAME ?? undefined,
 
-  // LiveKit Cloud Sandbox configuration
   sandboxId: undefined,
 };

@@ -1,20 +1,102 @@
+'use client';
+
 import { Button } from '@/components/ui/button';
 
-function WelcomeImage() {
+/* ── Animated orb background ── */
+function OrbBackground() {
   return (
-    <svg
-      width="64"
-      height="64"
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="text-fg0 mb-4 size-16"
-    >
-      <path
-        d="M15 24V40C15 40.7957 14.6839 41.5587 14.1213 42.1213C13.5587 42.6839 12.7956 43 12 43C11.2044 43 10.4413 42.6839 9.87868 42.1213C9.31607 41.5587 9 40.7957 9 40V24C9 23.2044 9.31607 22.4413 9.87868 21.8787C10.4413 21.3161 11.2044 21 12 21C12.7956 21 13.5587 21.3161 14.1213 21.8787C14.6839 22.4413 15 23.2044 15 24ZM22 5C21.2044 5 20.4413 5.31607 19.8787 5.87868C19.3161 6.44129 19 7.20435 19 8V56C19 56.7957 19.3161 57.5587 19.8787 58.1213C20.4413 58.6839 21.2044 59 22 59C22.7956 59 23.5587 58.6839 24.1213 58.1213C24.6839 57.5587 25 56.7957 25 56V8C25 7.20435 24.6839 6.44129 24.1213 5.87868C23.5587 5.31607 22.7956 5 22 5ZM32 13C31.2044 13 30.4413 13.3161 29.8787 13.8787C29.3161 14.4413 29 15.2044 29 16V48C29 48.7957 29.3161 49.5587 29.8787 50.1213C30.4413 50.6839 31.2044 51 32 51C32.7956 51 33.5587 50.6839 34.1213 50.1213C34.6839 49.5587 35 48.7957 35 48V16C35 15.2044 34.6839 14.4413 34.1213 13.8787C33.5587 13.3161 32.7956 13 32 13ZM42 21C41.2043 21 40.4413 21.3161 39.8787 21.8787C39.3161 22.4413 39 23.2044 39 24V40C39 40.7957 39.3161 41.5587 39.8787 42.1213C40.4413 42.6839 41.2043 43 42 43C42.7957 43 43.5587 42.6839 44.1213 42.1213C44.6839 41.5587 45 40.7957 45 40V24C45 23.2044 44.6839 22.4413 44.1213 21.8787C43.5587 21.3161 42.7957 21 42 21ZM52 17C51.2043 17 50.4413 17.3161 49.8787 17.8787C49.3161 18.4413 49 19.2044 49 20V44C49 44.7957 49.3161 45.5587 49.8787 46.1213C50.4413 46.6839 51.2043 47 52 47C52.7957 47 53.5587 46.6839 54.1213 46.1213C54.6839 45.5587 55 44.7957 55 44V20C55 19.2044 54.6839 18.4413 54.1213 17.8787C53.5587 17.3161 52.7957 17 52 17Z"
-        fill="currentColor"
-      />
-    </svg>
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+      {/* Large primary orb */}
+      <div className="absolute -top-32 left-1/2 -translate-x-1/2 h-[520px] w-[520px] rounded-full bg-primary/10 blur-[120px]" />
+      {/* Secondary warm orb */}
+      <div className="absolute top-1/3 -left-24 h-[320px] w-[320px] rounded-full bg-violet-400/8 blur-[100px]" />
+      {/* Third accent orb */}
+      <div className="absolute top-1/4 -right-24 h-[280px] w-[280px] rounded-full bg-indigo-400/8 blur-[90px]" />
+    </div>
+  );
+}
+
+/* ── Vidya Avatar Icon ── */
+function VidyaAvatar() {
+  return (
+    <div className="relative mb-6 flex items-center justify-center">
+      {/* Outer pulse ring */}
+      <span className="absolute inline-flex h-28 w-28 animate-ping rounded-full bg-primary/15 duration-[2500ms]" />
+      {/* Ring */}
+      <div className="relative flex h-24 w-24 items-center justify-center rounded-full border border-primary/20 bg-primary/8 shadow-xl shadow-primary/10">
+        {/* Book icon inside */}
+        <svg
+          width="44"
+          height="44"
+          viewBox="0 0 44 44"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="text-primary"
+          aria-hidden="true"
+        >
+          {/* Open book left page */}
+          <path
+            d="M22 10C22 10 14 8 6 12V36C14 32 22 34 22 34V10Z"
+            fill="currentColor"
+            fillOpacity="0.18"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          {/* Open book right page */}
+          <path
+            d="M22 10C22 10 30 8 38 12V36C30 32 22 34 22 34V10Z"
+            fill="currentColor"
+            fillOpacity="0.10"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          {/* Left lines */}
+          <line x1="10" y1="17" x2="19" y2="15.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.65" />
+          <line x1="10" y1="22" x2="19" y2="20.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.65" />
+          <line x1="10" y1="27" x2="19" y2="25.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.65" />
+          {/* Right lines */}
+          <line x1="25" y1="15.5" x2="34" y2="17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.40" />
+          <line x1="25" y1="20.5" x2="34" y2="22" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.40" />
+          <line x1="25" y1="25.5" x2="34" y2="27" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.40" />
+          {/* Sparkle */}
+          <circle cx="36" cy="10" r="2" fill="currentColor" fillOpacity="0.55" />
+          <line x1="36" y1="5.5" x2="36" y2="8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeOpacity="0.4" />
+          <line x1="36" y1="12" x2="36" y2="14.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeOpacity="0.4" />
+          <line x1="31.5" y1="10" x2="34" y2="10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeOpacity="0.4" />
+          <line x1="38" y1="10" x2="40.5" y2="10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeOpacity="0.4" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/* ── Capability card ── */
+function CapabilityCard({
+  emoji,
+  title,
+  description,
+}: {
+  emoji: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="bg-foreground/[0.03] border-foreground/8 hover:bg-foreground/[0.06] flex flex-col gap-1 rounded-2xl border p-4 text-left transition-colors duration-200">
+      <span className="text-xl" aria-hidden="true">{emoji}</span>
+      <p className="text-foreground text-sm font-semibold">{title}</p>
+      <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
+    </div>
+  );
+}
+
+/* ── Language chip ── */
+function LangChip({ label }: { label: string }) {
+  return (
+    <span className="bg-primary/8 text-primary border-primary/15 inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-medium">
+      {label}
+    </span>
   );
 }
 
@@ -29,35 +111,97 @@ export const WelcomeView = ({
   ref,
 }: React.ComponentProps<'div'> & WelcomeViewProps) => {
   return (
-    <div ref={ref}>
-      <section className="bg-background flex flex-col items-center justify-center text-center">
-        <WelcomeImage />
+    <div
+      ref={ref}
+      className="relative flex min-h-svh w-full flex-col items-center justify-center overflow-hidden px-4 py-16"
+    >
+      {/* Background orbs */}
+      <OrbBackground />
 
-        <p className="text-foreground max-w-prose pt-1 leading-6 font-medium">
-          Chat live with your voice AI agent
+      {/* Content card */}
+      <div className="relative z-10 flex w-full max-w-md flex-col items-center text-center">
+        {/* Avatar */}
+        <VidyaAvatar />
+
+        {/* Badge */}
+        <div className="bg-primary/10 text-primary mb-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold tracking-widest uppercase">
+          <span className="bg-primary inline-block h-1.5 w-1.5 animate-pulse rounded-full" />
+          Voice AI Tutor · Day 2
+        </div>
+
+        {/* Headline */}
+        <h1 className="text-foreground mb-2 text-4xl font-extrabold tracking-tight sm:text-5xl">
+          Hi, I&apos;m{' '}
+          <span className="text-primary">Vidya</span>
+        </h1>
+
+        {/* Sub-headline */}
+        <p className="text-muted-foreground mb-3 max-w-xs text-sm leading-relaxed">
+          Your patient voice learning assistant. Ask anything — concepts, practice, or revision.
         </p>
 
+        {/* Language chips */}
+        <div className="mb-7 flex flex-wrap justify-center gap-2">
+          <LangChip label="English" />
+          <LangChip label="हिंदी" />
+          <LangChip label="नेपाली" />
+          <LangChip label="Code-mixed" />
+        </div>
+
+        {/* CTA */}
         <Button
           size="lg"
           onClick={onStartCall}
-          className="mt-6 w-64 rounded-full font-mono text-xs font-bold tracking-wider uppercase"
+          className="mb-3 w-56 rounded-full font-mono text-xs font-bold tracking-widest uppercase shadow-lg shadow-primary/25 transition-all duration-200 hover:scale-105 hover:shadow-primary/40 active:scale-95"
         >
           {startButtonText}
         </Button>
-      </section>
 
-      <div className="fixed bottom-5 left-0 flex w-full items-center justify-center">
-        <p className="text-muted-foreground max-w-prose pt-1 text-xs leading-5 font-normal text-pretty md:text-sm">
-          Need help getting set up? Check out the{' '}
+        <p className="text-muted-foreground mb-10 text-[11px]">
+          🎤 Allow microphone when prompted
+        </p>
+
+        {/* Capability cards */}
+        <div className="grid w-full grid-cols-3 gap-2 text-center">
+          <CapabilityCard
+            emoji="💡"
+            title="Concepts"
+            description="Understand tough topics step by step"
+          />
+          <CapabilityCard
+            emoji="📝"
+            title="Practice"
+            description="Short questions with hints & feedback"
+          />
+          <CapabilityCard
+            emoji="🔁"
+            title="Revision"
+            description="Quick topic recap with Q&A"
+          />
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-5 left-0 flex w-full items-center justify-center">
+        <p className="text-muted-foreground text-[11px]">
+          Powered by{' '}
           <a
             target="_blank"
             rel="noopener noreferrer"
-            href="https://docs.livekit.io/agents/start/voice-ai/"
-            className="underline"
+            href="https://murf.ai"
+            className="underline underline-offset-2 hover:opacity-80"
           >
-            Voice AI quickstart
+            Murf Falcon TTS
           </a>
-          .
+          {' '}·{' '}
+          <a
+            target="_blank"
+            rel="noopener noreferrer"
+            href="https://livekit.io/agents"
+            className="underline underline-offset-2 hover:opacity-80"
+          >
+            LiveKit Agents
+          </a>
         </p>
       </div>
     </div>
