@@ -17,7 +17,7 @@ from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("agent")
 
-load_dotenv(".env.local")
+load_dotenv(".env.local", override=False)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Day 2 — Learning & Literacy: Vidya, the voice learning assistant
