@@ -1,0 +1,15 @@
+# fly.toml for Vidya backend — LiveKit voice agent worker (not a web service)
+app = 'vidya-backend'
+primary_region = 'sin'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+# No [http_service] — this is a worker, not a web server.
+# The Dockerfile CMD runs: uv run src/agent.py start
+# which connects outbound to LiveKit Cloud.
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
