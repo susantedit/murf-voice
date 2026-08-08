@@ -12,42 +12,41 @@ const MotionSessionView = motion.create(AgentSessionView_01);
 
 const VIEW_MOTION_PROPS = {
   variants: {
-    visible: {
-      opacity: 1,
-    },
-    hidden: {
-      opacity: 0,
-    },
+    visible: { opacity: 1 },
+    hidden: { opacity: 0 },
   },
   initial: 'hidden',
   animate: 'visible',
   exit: 'hidden',
-  transition: {
-    duration: 0.5,
-    ease: 'linear',
-  },
+  transition: { duration: 0.5, ease: 'linear' },
 };
 
 interface ViewControllerProps {
   appConfig: AppConfig;
+  onStartCall?: () => void;
+  onEndCall?: () => void;
 }
 
-export function ViewController({ appConfig }: ViewControllerProps) {
-  const { isConnected, start } = useSessionContext();
+export function ViewController({ appConfig, onStartCall, onEndCall }: ViewControllerProps) {
+  const { isConnected, start, end } = useSessionContext();
   const { resolvedTheme } = useTheme();
+
+  const handleStart = onStartCall ?? start;
+  const handleEnd = onEndCall ?? end;
 
   return (
     <AnimatePresence mode="wait">
-      {/* Welcome view */}
+      {/* Welcome / Ready view */}
       {!isConnected && (
         <MotionWelcomeView
           key="welcome"
           {...VIEW_MOTION_PROPS}
           startButtonText={appConfig.startButtonText}
-          onStartCall={start}
+          onStartCall={handleStart}
         />
       )}
-      {/* Session view */}
+
+      {/* Active session view */}
       {isConnected && (
         <MotionSessionView
           key="session-view"
@@ -69,6 +68,7 @@ export function ViewController({ appConfig }: ViewControllerProps) {
           audioVisualizerRadialBarCount={appConfig.audioVisualizerRadialBarCount}
           audioVisualizerRadialRadius={appConfig.audioVisualizerRadialRadius}
           audioVisualizerWaveLineWidth={appConfig.audioVisualizerWaveLineWidth}
+          onDisconnect={handleEnd}
           className="fixed inset-0"
         />
       )}

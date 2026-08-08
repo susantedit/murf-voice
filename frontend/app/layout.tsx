@@ -1,4 +1,4 @@
-import { Public_Sans } from 'next/font/google';
+import { Noto_Sans_Devanagari, Public_Sans } from 'next/font/google';
 import localFont from 'next/font/local';
 import { headers } from 'next/headers';
 import { ThemeProvider } from '@/components/app/theme-provider';
@@ -10,6 +10,13 @@ import '@/styles/globals.css';
 const publicSans = Public_Sans({
   variable: '--font-public-sans',
   subsets: ['latin'],
+});
+
+const notoDevanagari = Noto_Sans_Devanagari({
+  variable: '--font-noto-devanagari',
+  subsets: ['devanagari'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
 });
 
 const commitMono = localFont({
@@ -47,7 +54,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
   const hdrs = await headers();
   const appConfig = await getAppConfig(hdrs);
   const styles = getStyles(appConfig);
-  const { pageTitle, pageDescription, companyName, logo, logoDark } = appConfig;
+  const { pageTitle, pageDescription } = appConfig;
 
   return (
     <html
@@ -55,6 +62,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       suppressHydrationWarning
       className={cn(
         publicSans.variable,
+        notoDevanagari.variable,
         commitMono.variable,
         'scroll-smooth font-sans antialiased'
       )}
@@ -67,29 +75,22 @@ export default async function RootLayout({ children }: RootLayoutProps) {
       <body className="overflow-x-hidden">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
-          <header className="fixed top-0 left-0 z-50 hidden w-full flex-row justify-between p-6 md:flex">
-            <a
-              target="_blank"
-              rel="noopener noreferrer"
-              href="https://murf.ai"
-              className="scale-100 transition-transform duration-300 hover:scale-110"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logo} alt={`${companyName} Logo`} className="block size-6 dark:hidden" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoDark ?? logo}
-                alt={`${companyName} Logo`}
-                className="hidden size-6 dark:block"
-              />
-            </a>
-            <span className="text-foreground font-mono text-xs font-bold tracking-wider uppercase">
-              Vidya &mdash; Learning Assistant
-            </span>
+          <header className="fixed top-0 left-0 z-50 w-full flex flex-row items-center justify-between px-5 py-3 md:px-8 bg-background/80 backdrop-blur-sm border-b border-border/40">
+            {/* Vidya wordmark */}
+            <div className="flex flex-col leading-tight">
+              <span className="text-foreground font-bold text-base tracking-tight">Vidya</span>
+              <span className="text-muted-foreground text-[10px] tracking-wider uppercase">AI Learning Assistant</span>
+            </div>
+
+            {/* Desktop nav links */}
+            <nav className="hidden md:flex items-center gap-6" aria-label="Site navigation">
+              <a href="#how-it-works" className="text-muted-foreground hover:text-foreground text-sm transition-colors duration-200">How it works</a>
+              <a href="#languages" className="text-muted-foreground hover:text-foreground text-sm transition-colors duration-200">Languages</a>
+            </nav>
           </header>
 
           {children}
