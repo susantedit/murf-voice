@@ -165,20 +165,20 @@ async def my_agent(ctx: JobContext):
     }
 
     session = AgentSession(
-        # STT — Deepgram Nova-3 (multilingual)
-        stt=deepgram.STT(model="nova-3"),
+        # STT — Deepgram Nova-3 with multilingual detection
+        stt=deepgram.STT(model="nova-3", language="multi"),
         # LLM — Google Gemini
         llm=google.LLM(
-            model="gemini-3.5-flash-lite",
+            model="gemini-2.5-flash-lite",
         ),
-        # TTS — Murf Falcon (Indian English voice, conversational style)
+        # TTS — Murf Falcon, Anisha voice (no hardcoded locale)
         tts=murf.TTS(
-            voice="en-IN-Nikhil",
+            voice="Anisha",
             style="Conversation",
             tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
             text_pacing=True,
         ),
-        # Multilingual turn detection handles Hindi/English/Nepali code-mixing
+        # Multilingual turn detection
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
         preemptive_generation=True,
