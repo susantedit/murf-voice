@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { AccessToken, type AccessTokenOptions, type VideoGrant } from 'livekit-server-sdk';
 import { RoomConfiguration } from '@livekit/protocol';
 
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
       throw new Error('LIVEKIT_API_SECRET is not defined');
     }
 
-    // Parse room config from request body (if provided).
+    // Parse room config and userId from request body (if provided).
     const body = await req.json().catch(() => ({}));
     let roomConfig: RoomConfiguration | undefined;
     if (body?.room_config) {
@@ -43,10 +44,13 @@ export async function POST(req: Request) {
         { ignoreUnknownFields: true }
       );
     }
-      
-    // Generate participant token
+
+    // Use provided userId as the participant identity so the backend agent can
+    // look up persistent learner memory. Fall back to a random UUID for
+    // backward-compatibility when userId is not supplied.
     const participantName = 'user';
-    const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
+    const participantIdentity: string =
+      typeof body?.userId === 'string' && body.userId.length > 0 ? body.userId : randomUUID();
     const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
 
     const participantToken = await createParticipantToken(

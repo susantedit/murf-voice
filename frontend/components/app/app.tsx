@@ -9,10 +9,10 @@ import { AgentSessionProvider } from '@/components/agents-ui/agent-session-provi
 import { StartAudioButton } from '@/components/agents-ui/start-audio-button';
 import { VidyaMicError } from '@/components/app/vidya-mic-error';
 import { ViewController } from '@/components/app/view-controller';
-import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 import { useAgentErrors } from '@/hooks/useAgentErrors';
 import { useDebugMode } from '@/hooks/useDebug';
+import { getUserId } from '@/lib/user-identity';
 import { getSandboxTokenSource } from '@/lib/utils';
 
 const IN_DEVELOPMENT = process.env.NODE_ENV !== 'production';
@@ -39,12 +39,33 @@ interface AppProps {
 
 export function App({ appConfig }: AppProps) {
   const [micError, setMicError] = useState<'denied' | 'notfound' | 'unknown' | null>(null);
-  const [sessionEnded, setSessionEnded] = useState(false);
 
   const tokenSource = useMemo(() => {
-    return typeof process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT === 'string'
-      ? getSandboxTokenSource(appConfig)
-      : TokenSource.endpoint('/api/token');
+    if (typeof process.env.NEXT_PUBLIC_CONN_DETAILS_ENDPOINT === 'string') {
+      return getSandboxTokenSource(appConfig);
+    }
+
+    // Custom token source that sends the stable userId so the backend agent
+    // can look up persistent learner memory via participantIdentity.
+    return TokenSource.custom(async () => {
+      const userId = getUserId();
+      const body: Record<string, unknown> = { userId };
+
+      if (appConfig.agentName) {
+        body.room_config = { agents: [{ agent_name: appConfig.agentName }] };
+      }
+
+      const res = await fetch('/api/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Token request failed: ${res.status}`);
+      }
+      return await res.json();
+    });
   }, [appConfig]);
 
   const session = useSession(
@@ -54,7 +75,6 @@ export function App({ appConfig }: AppProps) {
 
   const handleStartCall = useCallback(async () => {
     setMicError(null);
-    setSessionEnded(false);
     try {
       await session.start();
     } catch (err) {
@@ -64,7 +84,6 @@ export function App({ appConfig }: AppProps) {
 
   const handleEndCall = useCallback(async () => {
     await session.end();
-    setSessionEnded(true);
   }, [session]);
 
   const handleRetryMic = useCallback(() => {
@@ -74,33 +93,6 @@ export function App({ appConfig }: AppProps) {
   // Microphone error screen
   if (micError) {
     return <VidyaMicError errorType={micError} onRetry={handleRetryMic} />;
-  }
-
-  // Session ended screen
-  if (sessionEnded && !session.isConnected) {
-    return (
-      <div className="flex min-h-svh w-full flex-col items-center justify-center gap-6 px-4 text-center">
-        <div className="text-5xl" aria-hidden="true">🎓</div>
-        <h2 className="text-foreground text-2xl font-bold">Session ended</h2>
-        <p className="text-muted-foreground text-sm">Nice learning with you!</p>
-        <div className="flex gap-3">
-          <Button
-            onClick={() => setSessionEnded(false)}
-            className="rounded-full px-6"
-            aria-label="Start a new learning session"
-          >
-            🔄 Start Again
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setSessionEnded(false)}
-            className="rounded-full px-6"
-          >
-            Back to Home
-          </Button>
-        </div>
-      </div>
-    );
   }
 
   return (

@@ -35,7 +35,8 @@ export interface AppConfig {
 export const APP_CONFIG_DEFAULTS: AppConfig = {
   companyName: 'Vidya',
   pageTitle: 'Vidya — Your Voice Learning Assistant',
-  pageDescription: 'Learn, practice, and revise with Vidya — a friendly AI voice tutor powered by Murf Falcon.',
+  pageDescription:
+    'Learn, practice, and revise with Vidya — a friendly AI voice tutor powered by Murf Falcon.',
 
   supportsChatInput: true,
   supportsVideoInput: false,

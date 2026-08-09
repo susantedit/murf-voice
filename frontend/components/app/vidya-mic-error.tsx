@@ -20,14 +20,12 @@ export function VidyaMicError({ errorType, onRetry }: VidyaMicErrorProps) {
       role="alert"
       aria-live="assertive"
     >
-      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10 text-4xl">
+      <div className="bg-destructive/10 mb-6 flex h-20 w-20 items-center justify-center rounded-full text-4xl">
         🎤
       </div>
 
       <h2 className="text-foreground mb-2 text-xl font-bold">{info.title}</h2>
-      <p className="text-muted-foreground mb-6 max-w-xs text-sm leading-relaxed">
-        {info.message}
-      </p>
+      <p className="text-muted-foreground mb-6 max-w-xs text-sm leading-relaxed">{info.message}</p>
 
       <Button
         onClick={onRetry}
@@ -51,8 +49,7 @@ function getErrorInfo(type: 'denied' | 'notfound' | 'unknown') {
     case 'notfound':
       return {
         title: 'No microphone found',
-        message:
-          "We couldn't find a working microphone. Check your microphone and try again.",
+        message: "We couldn't find a working microphone. Check your microphone and try again.",
       };
     default:
       return {

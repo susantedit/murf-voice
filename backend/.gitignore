@@ -11,6 +11,12 @@ KMS
 .pytest_cache
 .ruff_cache
 
+# Database
+data/
+*.db
+*.sqlite
+*.sqlite3
+
 # Claude Code
 .claude/settings.local.json
 .claude/worktrees/

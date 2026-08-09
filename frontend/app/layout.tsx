@@ -1,6 +1,7 @@
 import { Noto_Sans_Devanagari, Public_Sans } from 'next/font/google';
 import localFont from 'next/font/local';
 import { headers } from 'next/headers';
+import { NavBar } from '@/components/app/nav-bar';
 import { ThemeProvider } from '@/components/app/theme-provider';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { cn } from '@/lib/shadcn/utils';
@@ -73,25 +74,10 @@ export default async function RootLayout({ children }: RootLayoutProps) {
         <meta name="description" content={pageDescription} />
       </head>
       <body className="overflow-x-hidden">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <header className="fixed top-0 left-0 z-50 w-full flex flex-row items-center justify-between px-5 py-3 md:px-8 bg-background/80 backdrop-blur-sm border-b border-border/40">
-            {/* Vidya wordmark */}
-            <div className="flex flex-col leading-tight">
-              <span className="text-foreground font-bold text-base tracking-tight">Vidya</span>
-              <span className="text-muted-foreground text-[10px] tracking-wider uppercase">AI Learning Assistant</span>
-            </div>
-
-            {/* Desktop nav links */}
-            <nav className="hidden md:flex items-center gap-6" aria-label="Site navigation">
-              <a href="#how-it-works" className="text-muted-foreground hover:text-foreground text-sm transition-colors duration-200">How it works</a>
-              <a href="#languages" className="text-muted-foreground hover:text-foreground text-sm transition-colors duration-200">Languages</a>
-            </nav>
-          </header>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+          <NavBar />
+          {/* Spacer so fixed navbar doesn't overlap page content */}
+          <div className="h-[57px]" aria-hidden="true" />
 
           {children}
           <div className="group fixed bottom-0 left-1/2 z-50 mb-2 -translate-x-1/2">

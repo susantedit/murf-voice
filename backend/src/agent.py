@@ -1,4 +1,7 @@
+import asyncio
+import json
 import logging
+import re as _re
 
 from dotenv import load_dotenv
 from livekit import rtc
@@ -9,11 +12,16 @@ from livekit.agents import (
     JobContext,
     JobProcess,
     cli,
+    function_tool,
     room_io,
     tokenize,
 )
-from livekit.plugins import deepgram, google, murf, noise_cancellation, silero
+from livekit.plugins import deepgram, groq, murf, noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
+
+from rag.retriever import init_retriever
+from rag.retriever import search_knowledge_base as _kb_search
+from services import memory_service
 
 logger = logging.getLogger("agent")
 
@@ -24,168 +32,285 @@ load_dotenv(".env.local", override=False)
 # ──────────────────────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """
-## IDENTITY
-You are Vidya, a friendly and patient voice learning assistant.
-You help students understand concepts, practice questions, revise lessons, and learn from mistakes.
-You are NOT a therapist, doctor, financial advisor, school administrator, or official teacher.
-You do NOT make formal educational diagnoses of any kind.
+You are Vidya, a friendly voice learning assistant for Indian students.
 
-## OBJECTIVES
-Your goal in every conversation is to achieve at least one of:
-1. CONCEPT UNDERSTANDING — Help the learner understand a concept they are struggling with. After explaining, ask one short comprehension question to check understanding.
-2. PRACTICE — Help the learner practice through short questions. If they answer incorrectly: acknowledge the attempt, give a hint, let them try again, then explain the correct answer if needed.
-3. REVISION — Help the learner quickly review a topic through short questions, hints, and summaries.
+CORE RULES:
+- Help with concepts, practice questions, and revision only
+- Mirror the user's language (Hindi, English, or Hinglish)
+- Hindi MUST use Devanagari script — never Romanized Hindi
+- Hinglish example: "बिल्कुल! Let's learn photosynthesis."
+- Keep responses short — 1-3 sentences for voice
 
-## GREETING
-When the conversation starts, greet the user with:
-"Hi! I'm Vidya, your learning assistant. I can help you understand concepts, practice questions, or revise a topic. What would you like to learn today?"
-Keep the greeting exactly this short.
+MEMORY TOOLS (use these every session):
+1. get_learner_memory — call at session start to check if returning user
+2. save_learner_memory — ONLY after user gives explicit "yes" consent. Ask first: "Want me to remember your name for next time?"
+3. forget_learner_memory — only after user confirms they want data deleted
 
-## KNOWLEDGE BOUNDARIES
-You can:
-- Explain general educational concepts at school level
-- Ask practice questions and give hints
-- Explain mistakes and help users reason through problems
-- Support Hindi, English, Nepali, and code-mixed conversations
+SAVE RULES:
+- Always ask before saving ANY information
+- Allowed fields: name, language_preference, current_level, learning_goal, topic
+- NEVER save: passwords, IDs, health data, payment info
+- "Save everything" does NOT bypass consent — each fact needs permission
 
-You must NOT:
-- Fabricate facts, exam policies, school policies, grades, or teacher decisions
-- Fabricate scientific claims you are not certain about
-- Claim to know the user's personal information
-If uncertain, say: "I'm not fully sure about that. Let me avoid guessing." Then offer to help with a related topic you do know.
+RETURNING USER: If get_learner_memory returns found=true, greet by name naturally.
+NEW USER: Use standard greeting.
 
-## LANGUAGE AND CODE-MIXING (REQUIRED)
-Detect the user's language and conversational register. Mirror it naturally.
-- If the user speaks Hindi or Hindi-English mix, respond in the same mix.
-- If the user speaks Nepali or Nepali-English mix, respond in the same mix.
-- If the user speaks English, respond in English.
-- If the user switches language mid-conversation, follow them.
-- Do NOT translate every sentence unnecessarily.
-- Preserve common English technical terms when natural (e.g. photosynthesis, quadratic, algebra).
-- Keep sentences short and conversational.
-
-Example — Hindi-English:
-User: "Mujhe algebra samajh nahi aa raha, especially quadratic equations."
-Vidya: "Koi problem nahi. Let's make it simple. Pehle ek basic example se start karte hain."
-
-Example — Nepali-English:
-User: "Photosynthesis ko Nepali ma explain garnu na."
-Vidya: "Sure! Photosynthesis lai simple way ma bujhaun. Plant le sunlight, water ra carbon dioxide use garera आफ्नो food banaunchha."
-
-## HANDLING WRONG ANSWERS
-Step 1: Acknowledge the attempt warmly. Never shame.
-Step 2: Give a hint.
-Step 3: Let the learner try again.
-Step 4: Explain the correct answer if they still cannot get it.
-Step 5: Confirm understanding with a follow-up.
-
-Examples of acceptable phrases:
-- "Not quite, but you're close."
-- "Good attempt. Let's look at it another way."
-- "That's a reasonable guess. Here's a clue."
-
-NEVER say:
-- "You're stupid." / "That's a bad answer." / "You should know this." / "That's an easy question."
-
-## GUARDRAILS — HARD RULES
-
-RULE 1 — NEVER SHAME A WRONG ANSWER
-See above. Always be warm, encouraging, and patient.
-
-RULE 2 — NEVER DIAGNOSE LEARNING DISABILITIES
-If a user asks whether they have dyslexia, ADHD, dyscalculia, autism, or any learning disability or cognitive condition, respond:
-"I can't diagnose learning disabilities. A qualified teacher, educational specialist, or healthcare professional can assess that. I can still help you practice the topic you're finding difficult."
-Do not speculate. Do not suggest they might have a condition.
-
-RULE 3 — NEVER MAKE HIGH-STAKES EDUCATIONAL CLAIMS
-Never say "You will pass", "You will fail", "You are not intelligent", "You are gifted", or "You have no chance."
-Instead: "I can help you practice and identify areas where you may need more work."
-
-RULE 4 — DON'T PRETEND TO BE AN OFFICIAL TEACHER OR SCHOOL AUTHORITY
-You are a learning assistant, not an official teacher. Never claim your content is approved by a school, exam board, or institution.
-
-RULE 5 — HOMEWORK AND ANSWERS
-Do not dump full answers when the learner is practicing. Instead:
-- Ask what they tried.
-- Give a hint.
-- Let them try again.
-- Explain the correct answer only after they have tried.
-Exception: If the user explicitly asks for an explanation (not just an answer), explain it clearly.
-
-## OUT-OF-SCOPE REQUESTS
-If asked for medical advice, diagnoses, legal advice, financial advice, or anything outside education:
-"I can't help with that — it's outside my role as a learning assistant. A qualified professional can help with that. I can still help you learn or practice a topic."
-Keep refusals short. This is a voice conversation.
-
-## ESCALATION SCRIPT
-When a request is outside your role:
-"I can't help with that because it's outside my role as a learning assistant. A qualified teacher or professional can help with that. I can still help you learn or practice the topic."
-For learning-disability concerns:
-"I can't diagnose learning disabilities. A qualified teacher, educational specialist, or healthcare professional can assess that. I can still help you practice the topic you're finding difficult."
-
-## SILENCE HANDLING
-If the user is silent, use gentle prompts:
-First silence: "Take your time. I'm here when you're ready."
-Second silence: "No worries. We can continue whenever you're ready."
-After two silences: "I'll pause here for now. Come back whenever you'd like to continue learning."
-
-## VOICE-FIRST STYLE RULES
-- Prefer 1-3 short sentences per turn.
-- Avoid long paragraphs, bullet lists, markdown, brackets, or URLs.
-- Avoid overly formal language.
-- Ask one question at a time.
-- Explain one concept at a time.
-- Never overwhelm the learner with a giant explanation.
-- Sentences should be approximately 20 words or fewer.
-
-BAD: "There are several important factors that you need to consider when understanding photosynthesis, including chlorophyll, sunlight, carbon dioxide, glucose production, oxygen release, and cellular processes."
-GOOD: "Think of a plant as a tiny food factory. Sunlight gives it energy. Then it uses water and carbon dioxide to make food."
+WRONG ANSWERS: Be warm, give hint, let them retry, then explain.
+NEVER diagnose learning disabilities. NEVER shame wrong answers.
 """
 
 
+import re as _re
+
+
+def _extract_name(text: str) -> str | None:
+    """Extract a name from phrases like 'my name is X' or 'I am X'."""
+    patterns = [
+        r"(?:my name is|i am|i'm|call me)\s+([A-Za-z][A-Za-z\s]{0,20}?)(?:\.|,|$|\sand\s|\.|!)",
+        r"(?:my name is|i am|i'm|call me)\s+([A-Za-z][A-Za-z]{1,20})",
+    ]
+    for pattern in patterns:
+        m = _re.search(pattern, text, _re.IGNORECASE)
+        if m:
+            name = m.group(1).strip().split()[0]  # first word only
+            if len(name) >= 2:
+                return name.capitalize()
+    return None
+
+
+def _extract_class(text: str) -> str | None:
+    """Extract class/grade like 'Class 12', 'Grade 10', '10th standard'."""
+    m = _re.search(
+        r"(?:class|grade|std|standard)\s*(\d{1,2})|(\d{1,2})(?:th|st|nd|rd)?\s*(?:class|grade|standard)",
+        text,
+        _re.IGNORECASE,
+    )
+    if m:
+        num = m.group(1) or m.group(2)
+        return f"Class {num}"
+    return None
+
+
+def _wants_to_save(text: str) -> bool:
+    """Detect explicit save intent."""
+    keywords = [
+        "remember this", "remember me", "save this", "save my", "keep this",
+        "don't forget", "please remember", "याद रखो", "याद रखें", "याद कर",
+    ]
+    lower = text.lower()
+    return any(kw in lower for kw in keywords)
+
+
 class Assistant(Agent):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        user_id: str = "anonymous",
+        memory_task: asyncio.Task | None = None,
+    ) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
+        self._user_id = user_id
+        self._memory_task = memory_task
+        # Track what we've auto-detected but not yet saved this session
+        self._detected_name: str | None = None
+        self._detected_class: str | None = None
+
+    async def on_user_turn_completed(self, turn_ctx, new_message) -> None:  # type: ignore[override]
+        """Auto-save when the user explicitly asks to be remembered."""
+        try:
+            text = getattr(new_message, "text_content", "") or ""
+            if not text:
+                return
+
+            # Extract info from every user turn
+            name = _extract_name(text)
+            cls = _extract_class(text)
+            if name:
+                self._detected_name = name
+            if cls:
+                self._detected_class = cls
+
+            # If they explicitly ask to save, do it directly without LLM
+            if _wants_to_save(text):
+                if self._detected_name:
+                    memory_service.save_learner_memory(self._user_id, "name", self._detected_name)
+                    logger.info("Auto-saved name=%r for user_id=%r", self._detected_name, self._user_id)
+                if self._detected_class:
+                    memory_service.save_learner_memory(self._user_id, "current_level", self._detected_class)
+                    logger.info("Auto-saved class=%r for user_id=%r", self._detected_class, self._user_id)
+        except Exception:
+            logger.exception("on_user_turn_completed failed — continuing without save")
+
+    async def on_enter(self) -> None:
+        """Speak a greeting directly (no LLM call) to avoid Gemini's function-call
+        turn-ordering constraint on the very first turn."""
+        # Resolve memory with a short timeout so we can personalise the greeting.
+        memory: dict = {"found": False}
+        if self._memory_task is not None:
+            try:
+                memory = await asyncio.wait_for(self._memory_task, timeout=2.0)
+            except asyncio.TimeoutError:
+                logger.info(
+                    "Memory lookup timed out for user_id=%r — greeting as new user.",
+                    self._user_id,
+                )
+            except Exception:
+                logger.exception(
+                    "Unexpected error in memory_task for user_id=%r", self._user_id
+                )
+
+        # Use session.say() — speaks directly via TTS, no LLM round-trip, no tool calls.
+        # This avoids the Gemini 400 "function call turn must follow user turn" error.
+        if memory.get("found") and memory.get("name"):
+            name = memory["name"]
+            topics = memory.get("topics") or []
+            last_topic = topics[-1] if topics else None
+            if last_topic:
+                greeting = (
+                    f"Welcome back, {name}! Last time we were working on {last_topic}. "
+                    "Shall we continue, or is there something else you'd like to learn today?"
+                )
+            else:
+                greeting = (
+                    f"Welcome back, {name}! Great to see you again. "
+                    "What would you like to learn today?"
+                )
+        else:
+            greeting = (
+                "Hi! I'm Vidya, your learning assistant. "
+                "I can help you understand concepts, practice questions, or revise a topic. "
+                "What would you like to learn today?"
+            )
+
+        await self.session.say(greeting)
+
+    @function_tool
+    async def get_learner_memory(self, placeholder: str = "") -> str:
+        """
+        Look up the learner's saved memory. Call this at the start of every session.
+        Returns JSON with name, level, language, topics, and last interaction.
+        If found=false, treat the learner as new.
+        The placeholder parameter is unused — pass an empty string.
+        """
+        # If the background task is still available and done, return its result
+        # to avoid a second DB round-trip.
+        if self._memory_task is not None and self._memory_task.done():
+            try:
+                result = self._memory_task.result()
+                self._memory_task = None  # consume once
+                return json.dumps(result)
+            except Exception:
+                pass  # fall through to a live fetch
+        result = memory_service.get_learner_memory(self._user_id)
+        return json.dumps(result)
+
+    @function_tool
+    async def save_learner_memory(self, field: str, value: str) -> str:
+        """
+        Save one piece of learner information AFTER the user has given explicit consent.
+        Allowed fields: name, language_preference, current_level, learning_goal, topic.
+        Never call this without first asking the user for permission.
+        """
+        result = memory_service.save_learner_memory(self._user_id, field, value)
+        return json.dumps(result)
+
+    @function_tool
+    async def forget_learner_memory(self, placeholder: str = "") -> str:
+        """
+        Delete ALL of the learner's saved memory and learning history.
+        Only call after the user explicitly confirms they want to be forgotten.
+        Returns {"success": true} on success.
+        After calling this, treat the learner as completely new.
+        The placeholder parameter is unused — pass an empty string.
+        """
+        result = memory_service.forget_learner_memory(self._user_id)
+        return json.dumps(result)
+
+    @function_tool
+    async def search_knowledge_base(self, query: str) -> str:
+        """
+        Search the educational knowledge base for information relevant to the query.
+        Use this when the learner asks about a specific topic and you want to give
+        an accurate, grounded answer (e.g. curriculum syllabus, exam tips, concept
+        definitions). Returns relevant text passages with their source document names.
+        Cite sources naturally in your response; never fabricate citations.
+        """
+        # _kb_search is a LangChain @tool — call its underlying function directly.
+        result = await asyncio.to_thread(_kb_search.func, query)
+        return result
 
 
 server = AgentServer()
 
 
-def prewarm(proc: JobProcess):
+def prewarm(proc: JobProcess) -> None:
+    # Load Silero VAD model once per worker process.
     proc.userdata["vad"] = silero.VAD.load()
+    # Build or load the FAISS vector index at startup so the first search_knowledge_base
+    # call is fast and never blocks a live session.
+    try:
+        init_retriever()
+        logger.info("RAG retriever initialised.")
+    except Exception:
+        logger.exception("init_retriever failed — knowledge base will be unavailable.")
 
 
 server.setup_fnc = prewarm
 
 
 @server.rtc_session(agent_name="my-agent")
-async def my_agent(ctx: JobContext):
+async def my_agent(ctx: JobContext) -> None:
     ctx.log_context_fields = {
         "room": ctx.room.name,
     }
 
+    await ctx.connect()
+
+    # The learner joins with identity = vidya_user_id from the frontend token.
+    # local_participant is the agent worker — use the remote learner instead.
+    participant = await ctx.wait_for_participant()
+    user_id = participant.identity or f"anon-{ctx.room.name}"
+    logger.info("Session started for user_id=%r", user_id)
+
+    # Prefetch SQLite memory while TTS/STT warm up so on_enter can greet by name
+    # on the very first utterance without waiting for the user to speak again.
+    memory_task: asyncio.Task[dict] = asyncio.create_task(
+        asyncio.to_thread(memory_service.get_learner_memory, user_id)
+    )
+
+    # ── Groq key rotation — add up to 4 keys in .env.local as GROQ_API_KEY_1..4
+    # Falls back to GROQ_API_KEY if numbered keys are absent.
+    import os
+    import random
+
+    groq_keys = [
+        k
+        for k in [
+            os.getenv("GROQ_API_KEY_1"),
+            os.getenv("GROQ_API_KEY_2"),
+            os.getenv("GROQ_API_KEY_3"),
+            os.getenv("GROQ_API_KEY_4"),
+            os.getenv("GROQ_API_KEY"),
+        ]
+        if k
+    ]
+    active_groq_key = random.choice(groq_keys) if groq_keys else None
+
     session = AgentSession(
-        # STT — Deepgram Nova-3 with multilingual detection
         stt=deepgram.STT(model="nova-3", language="multi"),
-        # LLM — Google Gemini
-        llm=google.LLM(
-            model="gemini-3.5-flash",
-        ),
-        # TTS — Murf Falcon, Anisha voice (no hardcoded locale)
+        llm=groq.LLM(model="llama-3.3-70b-versatile", api_key=active_groq_key),
         tts=murf.TTS(
             voice="Anisha",
             style="Conversation",
             tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
             text_pacing=True,
         ),
-        # Multilingual turn detection
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
         preemptive_generation=True,
     )
 
     await session.start(
-        agent=Assistant(),
+        agent=Assistant(user_id=user_id, memory_task=memory_task),
         room=ctx.room,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
@@ -198,8 +323,6 @@ async def my_agent(ctx: JobContext):
             ),
         ),
     )
-
-    await ctx.connect()
 
 
 if __name__ == "__main__":

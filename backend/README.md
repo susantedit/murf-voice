@@ -221,6 +221,116 @@ backend/
 └── railway.toml           # Railway deploy config
 ```
 
+## Day 4 — Persistent Learner Memory
+
+Day 4 adds a SQLite-backed memory layer and a companion REST API.
+
+### Database
+
+The database is created automatically at `backend/data/vidya.db` the first time
+the agent or memory server starts.  It is gitignored and never committed.
+
+`init_db()` (in `src/db/database.py`) is idempotent — safe to call multiple
+times, uses `CREATE TABLE IF NOT EXISTS` throughout.
+
+### Memory REST API
+
+A lightweight HTTP server exposing learner memory over a simple REST interface.
+It uses only the Python standard library — no extra dependencies.
+
+| Method   | Path                 | Description                         |
+| -------- | -------------------- | ----------------------------------- |
+| `GET`    | `/memory/{user_id}`  | Fetch stored memory for a learner   |
+| `DELETE` | `/memory/{user_id}`  | Permanently delete a learner's data |
+| `OPTIONS`| `/memory/{user_id}`  | CORS preflight                      |
+
+All responses include `Access-Control-Allow-Origin: *`.
+
+Port defaults to **8888** and is overridable via `MEMORY_API_PORT`.
+
+#### Start the memory server
+
+```bash
+uv run python -m src.api.memory_server
+```
+
+### Project Structure (Day 4 additions)
+
+```
+backend/
+├── data/
+│   ├── vidya.db                   ← SQLite database (gitignored)
+│   ├── knowledge/                 ← Source documents for RAG (PDFs, TXT files)
+│   └── vector_store/              ← FAISS index (gitignored, rebuilt on startup)
+├── src/
+│   ├── db/
+│   │   ├── database.py            ← init_db, get_connection
+│   │   └── learner_repository.py  ← CRUD operations
+│   ├── services/
+│   │   └── memory_service.py      ← safe wrappers for agent + API
+│   ├── rag/
+│   │   ├── loader.py              ← document loading + chunking (LangChain)
+│   │   ├── vector_store.py        ← FAISS index build/load
+│   │   └── retriever.py           ← search_knowledge_base tool
+│   └── api/
+│       └── memory_server.py       ← REST API (port 8888)
+└── tests/
+    └── test_memory.py             ← repository unit tests
+```
+
+### RAG Knowledge Base
+
+Vidya can ground its answers in real educational documents (PDFs, TXT files) via a
+FAISS vector store built with LangChain.
+
+**Add documents:**
+
+Place `.pdf` or `.txt` files in `backend/data/knowledge/`. On next startup the agent
+automatically chunks and indexes them.
+
+**Rebuild the index:**
+
+Delete `backend/data/vector_store/` and restart the agent. A fresh FAISS index will
+be built from all documents in `backend/data/knowledge/`.
+
+**Knowledge directory:**
+
+```
+backend/data/knowledge/        ← drop PDFs and TXT files here
+backend/data/vector_store/     ← FAISS index (auto-built, gitignored)
+```
+
+If the knowledge directory is empty, `search_knowledge_base` returns
+`"Knowledge base not available."` and the agent answers from general knowledge.
+
+### LangChain Integration
+
+LangChain is used for two purposes in the Day 4 pipeline:
+
+1. **Document loading and chunking** — `langchain-community` `DirectoryLoader`,
+   `TextLoader`, and `PyPDFLoader` load documents from disk;
+   `RecursiveCharacterTextSplitter` splits them into 800-token chunks with 80-token
+   overlap.
+
+2. **RAG retrieval tool** — `langchain_core.tools.tool` decorator wraps the FAISS
+   similarity search as a `search_knowledge_base` callable that the Gemini LLM can
+   invoke during a session.
+
+LangChain does **not** replace LiveKit Agents — it augments the LLM step. The
+full voice pipeline (STT → LLM with tools → TTS) continues to run inside
+`livekit-agents`.
+
+Pinned versions (see `pyproject.toml`):
+
+| Package | Version |
+|---|---|
+| `langchain` | `0.3.25` |
+| `langchain-community` | `0.3.24` |
+| `langchain-core` | `0.3.59` |
+| `langchain-google-genai` | `2.1.4` |
+| `faiss-cpu` | `1.11.0` |
+| `pypdf` | `5.6.0` |
+
 ## Links
 
 - [Murf Falcon TTS Docs](https://murf.ai/api/docs/text-to-speech/streaming)

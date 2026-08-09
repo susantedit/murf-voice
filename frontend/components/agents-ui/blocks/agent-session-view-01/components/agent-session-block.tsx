@@ -143,10 +143,7 @@ export function AgentSessionView_01({
     >
       {/* ── Top status bar ── */}
       <div className="absolute inset-x-0 top-0 z-20 pt-2">
-        <VidyaSessionStatus
-          agentState={agentState}
-          className="mx-auto max-w-2xl"
-        />
+        <VidyaSessionStatus agentState={agentState} className="mx-auto max-w-2xl" />
       </div>
 
       <Fade top className="absolute inset-x-4 top-10 z-10 h-32" />

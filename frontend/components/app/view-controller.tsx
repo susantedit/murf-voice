@@ -1,14 +1,18 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { AnimatePresence, motion } from 'motion/react';
-import { useSessionContext } from '@livekit/components-react';
+import { useSessionContext, useSessionMessages } from '@livekit/components-react';
+import type { ReceivedMessage } from '@livekit/components-react';
 import type { AppConfig } from '@/app-config';
-import { AgentSessionView_01 } from '@/components/agents-ui/blocks/agent-session-view-01';
+import { SessionSummary } from '@/components/app/session-summary';
+import { VidyaLearningRoom } from '@/components/app/vidya-learning-room';
 import { WelcomeView } from '@/components/app/welcome-view';
 
 const MotionWelcomeView = motion.create(WelcomeView);
-const MotionSessionView = motion.create(AgentSessionView_01);
+const MotionLearningRoom = motion.create(VidyaLearningRoom);
+const MotionSessionSummary = motion.create(SessionSummary);
 
 const VIEW_MOTION_PROPS = {
   variants: {
@@ -29,32 +33,41 @@ interface ViewControllerProps {
 
 export function ViewController({ appConfig, onStartCall, onEndCall }: ViewControllerProps) {
   const { isConnected, start, end } = useSessionContext();
+  const session = useSessionContext();
+  const { messages } = useSessionMessages(session);
   const { resolvedTheme } = useTheme();
+
+  // ── Session summary state ──────────────────────────────────────────────
+  const [showSummary, setShowSummary] = useState(false);
+  const [capturedMessages, setCapturedMessages] = useState<ReceivedMessage[]>([]);
+
+  // Track the previous connection state to detect true → false transition.
+  const wasConnected = useRef(false);
+
+  useEffect(() => {
+    if (wasConnected.current && !isConnected) {
+      // Transition: connected → disconnected — show summary
+      setCapturedMessages([...messages]);
+      setShowSummary(true);
+    }
+    wasConnected.current = isConnected;
+  }, [isConnected, messages]);
 
   const handleStart = onStartCall ?? start;
   const handleEnd = onEndCall ?? end;
 
+  const handleContinue = () => {
+    setShowSummary(false);
+    setCapturedMessages([]);
+  };
+
   return (
     <AnimatePresence mode="wait">
-      {/* Welcome / Ready view */}
-      {!isConnected && (
-        <MotionWelcomeView
-          key="welcome"
-          {...VIEW_MOTION_PROPS}
-          startButtonText={appConfig.startButtonText}
-          onStartCall={handleStart}
-        />
-      )}
-
-      {/* Active session view */}
+      {/* Active session — Vidya Learning Room */}
       {isConnected && (
-        <MotionSessionView
-          key="session-view"
+        <MotionLearningRoom
+          key="learning-room"
           {...VIEW_MOTION_PROPS}
-          supportsChatInput={appConfig.supportsChatInput}
-          supportsVideoInput={appConfig.supportsVideoInput}
-          supportsScreenShare={appConfig.supportsScreenShare}
-          isPreConnectBufferEnabled={appConfig.isPreConnectBufferEnabled}
           audioVisualizerType={appConfig.audioVisualizerType}
           audioVisualizerColor={
             resolvedTheme === 'dark'
@@ -70,6 +83,26 @@ export function ViewController({ appConfig, onStartCall, onEndCall }: ViewContro
           audioVisualizerWaveLineWidth={appConfig.audioVisualizerWaveLineWidth}
           onDisconnect={handleEnd}
           className="fixed inset-0"
+        />
+      )}
+
+      {/* Session summary — shown after disconnect */}
+      {!isConnected && showSummary && (
+        <MotionSessionSummary
+          key="session-summary"
+          {...VIEW_MOTION_PROPS}
+          messages={capturedMessages}
+          onContinue={handleContinue}
+        />
+      )}
+
+      {/* Welcome / Ready view */}
+      {!isConnected && !showSummary && (
+        <MotionWelcomeView
+          key="welcome"
+          {...VIEW_MOTION_PROPS}
+          startButtonText={appConfig.startButtonText}
+          onStartCall={handleStart}
         />
       )}
     </AnimatePresence>

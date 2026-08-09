@@ -92,31 +92,32 @@ pnpm install
 
 ### Step 5: Run it
 
-**Option A - All-in-one (from repo root):**
+Open **three separate terminals** from the repo root:
 
-```bash
-# macOS/Linux
-chmod +x start_app.sh
-./start_app.sh
+**Terminal 1 — Backend agent**
 
-# Windows (PowerShell)
-.\start_app.ps1
+```powershell
+cd backend
+uv run python src/agent.py dev
 ```
 
-**Option B - Separate terminals:**
+**Terminal 2 — Memory API server** (Day 4 persistent memory)
 
-```bash
-# Terminal 1 — LiveKit Server
-livekit-server --dev
+```powershell
+cd backend
+uv run python -m src.api.memory_server
+```
 
-# Terminal 2 — Backend agent
-cd backend && uv run python src/agent.py dev
+**Terminal 3 — Frontend**
 
-# Terminal 3 — Frontend
-cd frontend && pnpm dev
+```powershell
+cd frontend
+pnpm dev
 ```
 
 Then open **http://localhost:3000** in your browser.
+
+> **Note:** You do NOT need to run a local LiveKit server — this project uses [LiveKit Cloud](https://cloud.livekit.io/). The `LIVEKIT_URL` in your `.env.local` points to the cloud instance.
 
 You should now see the voice agent UI. Click **Start talking**, allow microphone access, and speak — the agent will respond with Murf Falcon TTS. Ensure your backend and (if using Option B) LiveKit server are running.
 
@@ -232,22 +233,35 @@ Murf Falcon and LiveKit handle audio format internally. For advanced options, se
 murf-livekit-starter/
 ├── backend/                 # Python voice agent (LiveKit Agents + Murf Falcon)
 │   ├── src/
-│   │   └── agent.py         # Agent entrypoint, pipeline (STT/LLM/TTS), system prompt
-│   ├── tests/               # Agent tests
+│   │   ├── agent.py         # Agent entrypoint, pipeline (STT/LLM/TTS), system prompt
+│   │   ├── db/              # SQLite schema + repository (Day 4)
+│   │   ├── services/        # Memory service wrappers (Day 4)
+│   │   ├── rag/             # LangChain RAG pipeline — loader, FAISS, retriever (Day 4)
+│   │   └── api/
+│   │       └── memory_server.py  # REST API on port 8888 (Day 4)
+│   ├── data/
+│   │   ├── vidya.db         # SQLite database (gitignored, auto-created)
+│   │   ├── knowledge/       # Drop PDFs/TXTs here for RAG
+│   │   └── vector_store/    # FAISS index (gitignored, auto-built)
+│   ├── tests/               # Agent + memory tests
 │   ├── .env.example         # Backend env template
 │   ├── pyproject.toml       # Python deps (uv)
 │   └── railway.toml         # Railway deploy config
 ├── frontend/                # Next.js UI for voice sessions
 │   ├── app/
 │   │   ├── page.tsx         # Main page
-│   │   └── api/token/       # LiveKit token endpoint (dev)
+│   │   ├── memory/          # Memory management page at /memory (Day 4)
+│   │   └── api/token/       # LiveKit token endpoint
 │   ├── components/          # UI (agents-ui, app config, theme)
+│   ├── hooks/
+│   │   └── useLearnerMemory.ts  # Memory API hook (Day 4)
 │   ├── app-config.ts        # Branding, title, button text, accent
 │   ├── .env.example         # Frontend env template
 │   └── package.json         # Node deps (pnpm)
-├── start_app.sh             # Start LiveKit + backend + frontend (macOS/Linux)
-├── start_app.ps1            # Start LiveKit + backend + frontend (Windows)
-├── README.md                # This file
+├── start_app.sh             # Start backend + frontend (macOS/Linux)
+├── start_app.ps1            # Start backend + frontend (Windows)
+├── DAY_4_MEMORY.md          # Day 4 architecture documentation
+└── README.md                # This file
 ```
 
 For deeper documentation on each part, see:
