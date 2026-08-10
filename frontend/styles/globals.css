@@ -192,6 +192,13 @@
   border-color: rgb(124 92 255 / 0.12);
 }
 
+/* ── Waveform equalizer animation (VidyaOrb speaking state) ──────────────── */
+
+@keyframes waveform-bounce {
+  from { transform: scaleY(0.4); }
+  to   { transform: scaleY(1); }
+}
+
 /* Devanagari script rendering — ensure correct font for Hindi text */
 [lang="hi"],
 .devanagari {

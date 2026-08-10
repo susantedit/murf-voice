@@ -81,6 +81,19 @@ def init_db() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_facts_user ON learner_facts(user_id);
             CREATE INDEX IF NOT EXISTS idx_topics_user ON learning_topics(user_id);
+
+            CREATE TABLE IF NOT EXISTS exercise_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                exercise_id TEXT NOT NULL,
+                topic TEXT NOT NULL,
+                result TEXT NOT NULL,
+                attempted_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_attempts_user ON exercise_attempts(user_id);
+            CREATE INDEX IF NOT EXISTS idx_attempts_exercise ON exercise_attempts(user_id, exercise_id);
         """)
 
 

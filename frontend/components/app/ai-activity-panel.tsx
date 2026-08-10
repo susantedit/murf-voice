@@ -4,19 +4,23 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useAgent, useSessionContext, useSessionMessages } from '@livekit/components-react';
 import {
+  BookOpen,
   Brain,
   CheckCircle,
   CircleNotch,
   Lightbulb,
   Lightning,
   Microphone,
+  Warning,
   Waveform,
 } from '@phosphor-icons/react';
+import { useToolEvents } from '@/hooks/useToolEvents';
+import type { ToolEvent } from '@/hooks/useToolEvents';
 import { cn } from '@/lib/shadcn/utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type EventKind = 'heard' | 'memory' | 'thinking' | 'speaking' | 'default';
+type EventKind = 'heard' | 'memory' | 'thinking' | 'speaking' | 'tool' | 'error' | 'default';
 
 interface ActivityItem {
   id: string;
@@ -45,6 +49,41 @@ function classifyKind(label: string): EventKind {
     return 'thinking';
   if (l.includes('speaking') || l.includes('vidya is speak')) return 'speaking';
   return 'default';
+}
+
+/** Map a tool event to a human-readable activity item. */
+function toolEventToItem(event: ToolEvent): ActivityItem {
+  let label = event.label ?? event.type;
+  let kind: EventKind = 'tool';
+
+  switch (event.type) {
+    case 'tool_start':
+      label =
+        event.label ??
+        (event.tool === 'score_answer' ? 'Checking your answer...' : 'Fetching next exercise...');
+      kind = 'tool';
+      break;
+    case 'exercise_ready':
+      label = event.topic ? `✓ Exercise selected — ${event.topic}` : '✓ Exercise selected';
+      kind = 'tool';
+      break;
+    case 'answer_scored':
+      label = event.result ? `✓ Answer evaluated — ${event.result}` : '✓ Answer evaluated';
+      kind = 'tool';
+      break;
+    case 'tool_error':
+      label = event.label ?? 'Tool error';
+      kind = 'error';
+      break;
+  }
+
+  return {
+    id: makeId(),
+    kind,
+    label,
+    timestamp: event.receivedAt,
+    raw: `${event.type}${event.tool ? ` / ${event.tool}` : ''}`,
+  };
 }
 
 // ── Icon per kind ──────────────────────────────────────────────────────────
@@ -83,6 +122,14 @@ function KindIcon({ kind, className }: { kind: EventKind; className?: string }) 
           aria-hidden="true"
         />
       );
+    case 'tool':
+      return (
+        <BookOpen size={14} weight="bold" className={cn(base, 'text-primary')} aria-hidden="true" />
+      );
+    case 'error':
+      return (
+        <Warning size={14} weight="bold" className={cn(base, 'text-red-400')} aria-hidden="true" />
+      );
     default:
       return (
         <CheckCircle
@@ -102,16 +149,23 @@ export function AIActivityPanel({ className }: { className?: string }) {
   const { messages } = useSessionMessages(session);
   const { state: agentState } = useAgent();
 
+  // Day 5 — real tool events from the vidya-tools data channel
+  const toolEvents = useToolEvents();
+
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [techOpen, setTechOpen] = useState(false);
 
   const prevAgentState = useRef<string | undefined>(undefined);
   const prevMessageCount = useRef<number>(0);
+  const prevToolEventCount = useRef<number>(0);
   const hasCheckedMemory = useRef(false);
 
-  function addItem(label: string, raw?: string) {
-    const kind = classifyKind(label);
-    setItems((prev) => [{ id: makeId(), kind, label, timestamp: new Date(), raw }, ...prev]);
+  function addItem(label: string, raw?: string, kind?: EventKind) {
+    const resolvedKind = kind ?? classifyKind(label);
+    setItems((prev) => [
+      { id: makeId(), kind: resolvedKind, label, timestamp: new Date(), raw },
+      ...prev,
+    ]);
   }
 
   // Watch agent state transitions
@@ -159,6 +213,19 @@ export function AIActivityPanel({ className }: { className?: string }) {
     if (hasUserMsg) addItem('Heard you', 'STT transcript received');
   }, [messages]);
 
+  // Watch for new tool events from the vidya-tools data channel (Day 5)
+  useEffect(() => {
+    const currentCount = toolEvents.length;
+    if (currentCount <= prevToolEventCount.current) return;
+
+    const newEvents = toolEvents.slice(prevToolEventCount.current);
+    prevToolEventCount.current = currentCount;
+
+    // Convert each new tool event to an activity item and prepend (newest first)
+    const newItems = newEvents.map(toolEventToItem);
+    setItems((prev) => [...newItems.reverse(), ...prev]);
+  }, [toolEvents]);
+
   return (
     <div
       className={cn(
@@ -201,11 +268,18 @@ export function AIActivityPanel({ className }: { className?: string }) {
           {items.map((item) => (
             <li
               key={item.id}
-              className="border-border/40 bg-background/40 flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5"
+              className={cn(
+                'border-border/40 bg-background/40 flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5',
+                item.kind === 'error' && 'border-red-500/20 bg-red-500/5'
+              )}
             >
               <span className="flex items-center gap-2">
                 <KindIcon kind={item.kind} />
-                <span className="text-foreground text-xs">{item.label}</span>
+                <span
+                  className={cn('text-foreground text-xs', item.kind === 'error' && 'text-red-400')}
+                >
+                  {item.label}
+                </span>
               </span>
               <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
                 {formatTime(item.timestamp)}
@@ -227,7 +301,7 @@ export function AIActivityPanel({ className }: { className?: string }) {
         <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
           {[
             ['STT', 'Deepgram Nova-3'],
-            ['LLM', 'Gemini 3.5'],
+            ['LLM', 'Groq Llama-3.3'],
             ['Memory', 'SQLite'],
             ['TTS', 'Murf Falcon'],
           ].map(([k, v]) => (

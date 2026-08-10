@@ -341,3 +341,90 @@ Pinned versions (see `pyproject.toml`):
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Day 5 — Tools
+
+### What was built
+Vidya now has real function-calling capabilities. When a learner asks to practice,
+Vidya automatically calls `get_next_exercise`, personalises the exercise using
+persistent Day 4 memory, and speaks it naturally. When the learner answers,
+`score_answer` evaluates the response and Vidya gives warm, encouraging feedback.
+Tool activity is shown in real-time in the frontend's Activity panel.
+
+### Tools
+
+| Tool | Purpose | Trigger |
+|---|---|---|
+| `get_next_exercise` | Fetch the next appropriate exercise from the local dataset | Learner asks to practice/quiz/test themselves |
+| `score_answer` | Evaluate the learner's spoken answer against the exercise | Learner gives an answer after an exercise |
+| `search_knowledge_base` | Retrieve relevant curriculum text from local knowledge base | Learner asks a curriculum factual question |
+| `get_learner_memory` | Look up saved learner profile (name, level, topics) | Start of session |
+| `save_learner_memory` | Persist one piece of learner info with consent | After learner gives explicit permission |
+| `forget_learner_memory` | Delete all saved learner data | After learner confirms deletion |
+
+### Architecture
+
+```
+Voice (Learner)
+    ↓ STT (Deepgram Nova-3 multilingual)
+    ↓ LLM (Groq llama-3.3-70b-versatile)
+    ↓ Memory (SQLite — get_learner_memory)
+    ↓ Tool (get_next_exercise / score_answer)
+    ↓ Data (backend/data/exercises/exercises.json — LOCAL)
+    ↓ LLM (compose natural voice response)
+    ↓ TTS (Murf Falcon — Anisha voice)
+    ↓ Learner hears exercise / feedback
+```
+
+### Data Source
+
+```
+DATA SOURCE
+-----------
+Type:         LOCAL
+Source:       backend/data/exercises/exercises.json
+Description:  Curated educational dataset for Indian school curriculum (Classes 6–12)
+Topics:       Algebra, Fractions, Photosynthesis, Water Cycle, Geography,
+              Arithmetic, Biology, Chemistry, Physics, History, Hindi Grammar
+Exercises:    20 questions across 11 topics
+Updated:      2026-08-10
+License:      MIT (part of this project)
+
+NOTE: Exercises are served from the project's local learning dataset.
+      This is NOT live internet data. Vidya will say the exercise comes
+      from its local dataset when relevant.
+```
+
+### Failure Handling
+
+To simulate the exercise service failing:
+
+```bash
+EXERCISE_SERVICE_DISABLED=1 uv run python src/agent.py dev
+```
+
+When disabled, Vidya will respond with:
+> "I'm having trouble loading a new exercise right now. We can continue with the last topic we were practicing."
+
+No exercise card will be shown on screen. The agent never invents an exercise.
+
+### Privacy
+
+- Exercise attempt history (topic + result only) is stored in `exercise_attempts` table
+- Full learner profile fields (name, level, goal, language) require explicit consent via `save_learner_memory`
+- All data is local SQLite — never sent to external services
+- "Forget everything" deletes all data including attempt history (CASCADE DELETE)
+
+### Testing
+
+```bash
+cd backend
+# Run all tests
+uv run pytest
+
+# Run exercise service tests only
+uv run pytest tests/test_exercise_service.py -v
+
+# Run memory tests only
+uv run pytest tests/test_memory.py -v
+```

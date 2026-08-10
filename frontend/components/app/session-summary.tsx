@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import type { ReceivedMessage } from '@livekit/components-react';
-import { ArrowRight, Brain, Microphone, NotePencil } from '@phosphor-icons/react';
+import { ArrowRight, Brain, GraduationCap, Microphone } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/shadcn/utils';
 
@@ -95,14 +95,14 @@ export function SessionSummary({
 
       <div className="relative z-10 mx-auto w-full max-w-lg">
         {/* ── Heading ── */}
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+        <div className="mb-10 flex flex-col items-center gap-3 text-center">
           <div
-            className="bg-primary/10 mb-2 flex h-20 w-20 items-center justify-center rounded-full"
+            className="bg-primary/10 border-primary/20 shadow-primary/10 mb-2 flex h-20 w-20 items-center justify-center rounded-full border shadow-lg"
             aria-hidden="true"
           >
-            <NotePencil size={40} weight="duotone" className="text-primary" />
+            <GraduationCap size={40} weight="duotone" className="text-primary" />
           </div>
-          <h1 className="text-foreground text-3xl font-extrabold tracking-tight">Great session! 🎉</h1>
+          <h1 className="text-foreground text-3xl font-extrabold tracking-tight">Great session!</h1>
           <p className="text-muted-foreground text-sm">
             {hadConversation ? "Here's a recap of what we covered." : 'Your session has ended.'}
           </p>
@@ -111,16 +111,16 @@ export function SessionSummary({
         {/* ── Topics discussed ── */}
         {topics.length > 0 && (
           <div
-            className="border-border/60 bg-background/60 mb-4 rounded-2xl border p-4 backdrop-blur-sm"
+            className="border-border/60 bg-background/60 mb-5 rounded-2xl border p-5 backdrop-blur-sm"
             aria-label="Topics discussed"
           >
-            <p className="text-muted-foreground mb-3 text-[11px] font-semibold tracking-wider uppercase">
+            <p className="text-muted-foreground mb-4 text-[11px] font-semibold tracking-wider uppercase">
               Topics discussed
             </p>
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-2.5">
               {topics.map((snippet, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5 shrink-0 text-xs">•</span>
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className="text-primary mt-0.5 shrink-0 text-sm font-bold">•</span>
                   <span className="text-foreground text-sm leading-relaxed">{snippet}</span>
                 </li>
               ))}

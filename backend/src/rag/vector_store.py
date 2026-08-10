@@ -15,7 +15,9 @@ VECTOR_STORE_PATH = Path(__file__).parent.parent.parent / "data" / "vector_store
 
 def build_vector_store(docs: object) -> None:
     """No-op — RAG disabled."""
-    logger.warning("RAG vector store is disabled (sentence-transformers not installed).")
+    logger.warning(
+        "RAG vector store is disabled (sentence-transformers not installed)."
+    )
     return None
 
 

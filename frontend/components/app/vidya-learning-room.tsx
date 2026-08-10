@@ -1,7 +1,10 @@
+'use client';
+
 import React, { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { AnimatePresence, motion } from 'motion/react';
 import { useAgent, useSessionContext, useSessionMessages } from '@livekit/components-react';
-import type { AgentState } from '@livekit/components-react';
+import type { AgentState, ReceivedMessage } from '@livekit/components-react';
 import {
   ArrowCounterClockwise,
   Atom,
@@ -9,21 +12,25 @@ import {
   Brain,
   ChatTeardrop,
   CheckCircle,
+  CircleNotch,
   Globe,
-  Lightning,
   MathOperations,
   Microphone,
   Question,
   Timer,
+  Warning,
   Waveform,
-  X,
 } from '@phosphor-icons/react';
 import type { Icon as PhosphorIcon } from '@phosphor-icons/react';
-import { AgentChatTranscript } from '@/components/agents-ui/agent-chat-transcript';
 import { AgentControlBar } from '@/components/agents-ui/agent-control-bar';
 import { AIActivityPanel } from '@/components/app/ai-activity-panel';
+import { ExerciseCard } from '@/components/app/exercise-card';
+import type { ExerciseCardProps } from '@/components/app/exercise-card';
+import { FeedbackCard } from '@/components/app/feedback-card';
+import type { FeedbackCardProps } from '@/components/app/feedback-card';
 import { LearningContextPanel } from '@/components/app/learning-context-panel';
 import { useLearnerMemory } from '@/hooks/useLearnerMemory';
+import { useToolEvents } from '@/hooks/useToolEvents';
 import { cn } from '@/lib/shadcn/utils';
 import { getUserId } from '@/lib/user-identity';
 
@@ -62,28 +69,28 @@ const STATE_CONFIG: Record<
   listening: {
     IconComponent: Microphone,
     label: 'LISTENING',
-    sublabel: 'Vidya is listening...',
+    sublabel: 'Speak now — I\'m ready for you',
     color: 'text-cyan-400',
     dot: 'bg-cyan-400 motion-safe:animate-ping',
   },
   thinking: {
     IconComponent: Brain,
     label: 'THINKING',
-    sublabel: 'Vidya is thinking...',
+    sublabel: 'Processing your question...',
     color: 'text-violet-400',
     dot: 'bg-violet-400 motion-safe:animate-spin',
   },
   speaking: {
     IconComponent: Waveform,
     label: 'SPEAKING',
-    sublabel: 'Vidya is speaking...',
+    sublabel: 'Vidya is responding...',
     color: 'text-emerald-400',
     dot: 'bg-emerald-400 motion-safe:animate-pulse',
   },
   idle: {
     IconComponent: CheckCircle,
     label: 'READY',
-    sublabel: 'Ask me anything about your studies.',
+    sublabel: 'Ask me anything about your studies',
     color: 'text-primary/60',
     dot: 'bg-primary/40 motion-safe:animate-pulse',
   },
@@ -103,12 +110,9 @@ function VidyaOrb({ state }: { state: OrbState }) {
       <div
         className={cn('absolute rounded-full blur-[90px] transition-all duration-1000', {
           'bg-primary/8 h-72 w-72': state === 'idle' || isConnecting,
-          'h-72 w-72 bg-cyan-400/12 [animation-duration:0.8s] motion-safe:animate-pulse':
-            isListening,
-          'h-72 w-72 bg-violet-400/15 [animation-duration:1.2s] motion-safe:animate-pulse':
-            isThinking,
-          'h-72 w-72 bg-emerald-400/15 [animation-duration:0.6s] motion-safe:animate-pulse':
-            isSpeaking,
+          'h-72 w-72 bg-cyan-400/12 [animation-duration:0.8s] motion-safe:animate-pulse': isListening,
+          'h-72 w-72 bg-violet-400/15 [animation-duration:1.2s] motion-safe:animate-pulse': isThinking,
+          'h-72 w-72 bg-emerald-400/15 [animation-duration:0.6s] motion-safe:animate-pulse': isSpeaking,
         })}
       />
       {/* Outer ring */}
@@ -127,8 +131,7 @@ function VidyaOrb({ state }: { state: OrbState }) {
       {/* Mid ring */}
       <span
         className={cn('absolute h-44 w-44 rounded-full border transition-all duration-700', {
-          'border-primary/10 [animation-duration:3s] motion-safe:animate-pulse':
-            state === 'idle' || isConnecting,
+          'border-primary/10 [animation-duration:3s] motion-safe:animate-pulse': state === 'idle' || isConnecting,
           'border-cyan-400/20 [animation-duration:0.8s] motion-safe:animate-pulse': isListening,
           'border-violet-400/25 [animation-duration:3s] motion-safe:animate-spin': isThinking,
           'border-emerald-400/20 [animation-duration:0.6s] motion-safe:animate-pulse': isSpeaking,
@@ -146,8 +149,7 @@ function VidyaOrb({ state }: { state: OrbState }) {
           }
         )}
         style={{
-          background:
-            'radial-gradient(circle at 35% 35%, oklch(0.70 0.22 264), oklch(0.42 0.25 280))',
+          background: 'radial-gradient(circle at 35% 35%, oklch(0.70 0.22 264), oklch(0.42 0.25 280))',
           border: '1px solid oklch(1 0 0 / 15%)',
         }}
       >
@@ -161,125 +163,77 @@ function VidyaOrb({ state }: { state: OrbState }) {
         />
         {/* Book SVG */}
         <svg width="52" height="52" viewBox="0 0 48 48" fill="none" className="relative z-10">
-          <path
-            d="M24 11C24 11 15 9 7 13V38C15 34 24 36 24 36V11Z"
-            fill="white"
-            fillOpacity="0.25"
-            stroke="white"
-            strokeWidth="1.8"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M24 11C24 11 33 9 41 13V38C33 34 24 36 24 36V11Z"
-            fill="white"
-            fillOpacity="0.12"
-            stroke="white"
-            strokeWidth="1.8"
-            strokeLinejoin="round"
-          />
-          <line
-            x1="11"
-            y1="18"
-            x2="21"
-            y2="16.5"
-            stroke="white"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeOpacity="0.7"
-          />
-          <line
-            x1="11"
-            y1="23"
-            x2="21"
-            y2="21.5"
-            stroke="white"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeOpacity="0.7"
-          />
-          <line
-            x1="11"
-            y1="28"
-            x2="21"
-            y2="26.5"
-            stroke="white"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeOpacity="0.7"
-          />
-          <line
-            x1="27"
-            y1="16.5"
-            x2="37"
-            y2="18"
-            stroke="white"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeOpacity="0.5"
-          />
-          <line
-            x1="27"
-            y1="21.5"
-            x2="37"
-            y2="23"
-            stroke="white"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeOpacity="0.5"
-          />
-          <line
-            x1="27"
-            y1="26.5"
-            x2="37"
-            y2="28"
-            stroke="white"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeOpacity="0.5"
-          />
+          <path d="M24 11C24 11 15 9 7 13V38C15 34 24 36 24 36V11Z" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
+          <path d="M24 11C24 11 33 9 41 13V38C33 34 24 36 24 36V11Z" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
+          <line x1="11" y1="18" x2="21" y2="16.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.7" />
+          <line x1="11" y1="23" x2="21" y2="21.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.7" />
+          <line x1="11" y1="28" x2="21" y2="26.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.7" />
+          <line x1="27" y1="16.5" x2="37" y2="18" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.5" />
+          <line x1="27" y1="21.5" x2="37" y2="23" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.5" />
+          <line x1="27" y1="26.5" x2="37" y2="28" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.5" />
           <circle cx="39" cy="10" r="2.5" fill="white" fillOpacity="0.6" />
-          <line
-            x1="39"
-            y1="5"
-            x2="39"
-            y2="8"
-            stroke="white"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeOpacity="0.5"
-          />
-          <line
-            x1="39"
-            y1="12"
-            x2="39"
-            y2="15"
-            stroke="white"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeOpacity="0.5"
-          />
-          <line
-            x1="34"
-            y1="10"
-            x2="37"
-            y2="10"
-            stroke="white"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeOpacity="0.5"
-          />
-          <line
-            x1="41"
-            y1="10"
-            x2="44"
-            y2="10"
-            stroke="white"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeOpacity="0.5"
-          />
+          <line x1="39" y1="5" x2="39" y2="8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.5" />
+          <line x1="39" y1="12" x2="39" y2="15" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.5" />
+          <line x1="34" y1="10" x2="37" y2="10" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.5" />
+          <line x1="41" y1="10" x2="44" y2="10" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.5" />
         </svg>
       </div>
+
+      {/* Waveform bars — only shown when speaking */}
+      {isSpeaking && (
+        <div className="absolute flex items-end gap-0.5" style={{ bottom: -20 }}>
+          {[3, 5, 8, 5, 3].map((h, i) => (
+            <div
+              key={i}
+              className="w-1 rounded-full bg-emerald-400"
+              style={{
+                height: `${h * 3}px`,
+                animationDelay: `${i * 0.1}s`,
+                animation: 'waveform-bounce 0.6s ease-in-out infinite alternate',
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── State Badge ────────────────────────────────────────────────────────────
+
+function StateBadge({ orbState }: { orbState: OrbState }) {
+  const config = STATE_CONFIG[orbState];
+  const IconComp = config.IconComponent;
+
+  return (
+    <div className="mt-8 flex flex-col items-center gap-2" role="status" aria-live="polite" aria-label={config.sublabel}>
+      <span
+        className={cn(
+          'inline-flex items-center gap-3 rounded-full border px-6 py-2.5 text-sm font-bold tracking-widest uppercase backdrop-blur-sm',
+          {
+            'border-cyan-400/40 bg-cyan-400/10 text-cyan-400': orbState === 'listening',
+            'border-violet-400/40 bg-violet-400/10 text-violet-400': orbState === 'thinking',
+            'border-emerald-400/40 bg-emerald-400/10 text-emerald-400': orbState === 'speaking',
+            'border-primary/40 bg-primary/10 text-primary': orbState === 'connecting',
+            'text-muted-foreground border-white/12 bg-white/5': orbState === 'idle',
+          }
+        )}
+      >
+        {orbState === 'listening' && <Microphone size={16} weight="bold" className="motion-safe:animate-pulse" aria-hidden="true" />}
+        {orbState === 'thinking' && <Brain size={16} weight="bold" className="[animation-duration:1.5s] motion-safe:animate-spin" aria-hidden="true" />}
+        {orbState === 'speaking' && <Waveform size={16} weight="bold" className="[animation-duration:0.6s] motion-safe:animate-pulse" aria-hidden="true" />}
+        {orbState === 'connecting' && <CircleNotch size={16} weight="bold" className="motion-safe:animate-spin" aria-hidden="true" />}
+        {orbState === 'idle' && <CheckCircle size={16} weight="bold" aria-hidden="true" />}
+        <span>
+          {orbState === 'idle' && 'VIDYA IS READY'}
+          {orbState === 'connecting' && 'CONNECTING'}
+          {orbState === 'listening' && 'VIDYA IS LISTENING'}
+          {orbState === 'thinking' && 'VIDYA IS THINKING'}
+          {orbState === 'speaking' && 'VIDYA IS SPEAKING'}
+        </span>
+        <IconComp size={16} weight="bold" aria-hidden="true" className="opacity-60" />
+      </span>
+      <p className="text-muted-foreground text-sm font-medium">{config.sublabel}</p>
     </div>
   );
 }
@@ -294,57 +248,179 @@ interface InspirationChipProps {
 function InspirationChip({ icon, text }: InspirationChipProps) {
   return (
     <span className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs font-medium">
-      <span aria-hidden="true" className="shrink-0">
-        {icon}
-      </span>
+      <span aria-hidden="true" className="shrink-0">{icon}</span>
       {text}
     </span>
   );
 }
 
-// ── Memory journey card ────────────────────────────────────────────────────
+// ── Learning Context Bar ───────────────────────────────────────────────────
 
-function MemoryJourneyCard({ userId }: { userId: string }) {
+function LearningContextBar({ userId }: { userId: string }) {
   const { memory, loading } = useLearnerMemory(userId);
-
   if (loading || !memory?.found) return null;
 
-  const lastTopic =
-    memory.topics && memory.topics.length > 0 ? memory.topics[memory.topics.length - 1] : undefined;
-  const topicsCount = memory.topics?.length ?? 0;
+  const lastTopic = memory.topics && memory.topics.length > 0 ? memory.topics[memory.topics.length - 1] : undefined;
 
   return (
-    <div className="border-primary/20 bg-primary/5 mx-auto w-full max-w-sm rounded-2xl border p-4 backdrop-blur-sm">
-      <p className="text-primary/70 mb-2 flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase">
-        <Brain size={12} weight="duotone" aria-hidden="true" /> Your Learning Journey
-      </p>
+    <div className="mx-auto mt-4 flex flex-wrap items-center justify-center gap-2 px-4">
       {memory.name && (
-        <p className="text-foreground mb-1 text-sm font-semibold">Welcome back, {memory.name}</p>
+        <span className="border-primary/20 bg-primary/5 text-primary inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold">
+          Student: {memory.name}
+        </span>
+      )}
+      {memory.current_level && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/20 bg-violet-400/5 px-2.5 py-1 text-[10px] font-semibold text-violet-400">
+          Level: {memory.current_level}
+        </span>
       )}
       {lastTopic && (
-        <p className="text-muted-foreground mb-3 text-xs">
-          Last time: <span className="text-foreground font-medium">{lastTopic}</span>
-        </p>
+        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-400/20 bg-cyan-400/5 px-2.5 py-1 text-[10px] font-semibold text-cyan-400">
+          Topic: {lastTopic}
+        </span>
       )}
-      {/* Topic progress bar — honest: n topics explored */}
-      {topicsCount > 0 && (
-        <div className="mb-3">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="text-muted-foreground text-[10px]">Topics explored</span>
-            <span className="text-primary text-[10px] font-semibold">{topicsCount}</span>
-          </div>
-          <div className="bg-primary/10 h-1.5 w-full rounded-full">
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-1 text-[10px] font-semibold text-emerald-400">
+        <Brain size={10} weight="duotone" aria-hidden="true" /> Memory: Active
+      </span>
+    </div>
+  );
+}
+
+// ── Custom Transcript (chat bubbles) ───────────────────────────────────────
+
+interface CustomTranscriptProps {
+  messages: ReceivedMessage[];
+  agentState?: AgentState;
+}
+
+function CustomTranscript({ messages, agentState }: CustomTranscriptProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  if (messages.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+        <ChatTeardrop size={32} weight="regular" className="text-muted-foreground/30" aria-hidden="true" />
+        <p className="text-muted-foreground text-xs">Your conversation will appear here...</p>
+        <p className="text-muted-foreground/50 text-[10px]">Hindi → देवनागरी · English → Latin</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col gap-3 overflow-y-auto p-4">
+      {messages.map((msg) => {
+        const isUser = msg.from?.isLocal === true;
+        const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US';
+        const time = new Date(msg.timestamp).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+
+        return (
+          <div key={msg.id} className={cn('flex items-end gap-2', isUser ? 'flex-row-reverse' : 'flex-row')}>
+            {/* Avatar */}
             <div
-              className="bg-primary h-1.5 rounded-full transition-all duration-500"
-              style={{ width: `${Math.min(100, topicsCount * 10)}%` }}
-            />
+              className={cn(
+                'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
+                isUser
+                  ? 'bg-primary/20 text-primary border border-primary/30'
+                  : 'bg-white/8 text-muted-foreground border border-white/10'
+              )}
+              aria-hidden="true"
+            >
+              {isUser ? 'U' : <BookOpen size={10} weight="bold" />}
+            </div>
+            {/* Bubble */}
+            <div className={cn('flex max-w-[80%] flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
+              <div
+                className={cn(
+                  'rounded-2xl px-3.5 py-2 text-sm leading-relaxed',
+                  isUser
+                    ? 'bg-primary/15 border border-primary/20 text-foreground rounded-br-sm'
+                    : 'bg-white/5 border border-white/8 text-foreground rounded-bl-sm'
+                )}
+              >
+                {msg.message}
+              </div>
+              <span className="text-muted-foreground/50 text-[10px] tabular-nums">{time}</span>
+            </div>
+          </div>
+        );
+      })}
+      {/* Thinking indicator */}
+      {agentState === 'thinking' && (
+        <div className="flex items-end gap-2">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/8 text-muted-foreground" aria-hidden="true">
+            <BookOpen size={10} weight="bold" />
+          </div>
+          <div className="rounded-2xl rounded-bl-sm border border-white/8 bg-white/5 px-3.5 py-2">
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:0ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:150ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:300ms]" />
+            </span>
           </div>
         </div>
       )}
-      <p className="text-muted-foreground/60 flex items-center gap-1 text-[10px]">
-        <Brain size={10} weight="duotone" aria-hidden="true" /> Saved with your permission
-      </p>
+      <div ref={bottomRef} />
     </div>
+  );
+}
+
+// ── Feature pills (Learning Context Cards) ─────────────────────────────────
+
+function FeaturePills() {
+  const pills = [
+    { icon: '🧠', label: 'Memory Active', desc: 'Learns your preferences' },
+    { icon: '📚', label: 'Personalised', desc: 'Adapted to your level' },
+    { icon: '🌐', label: 'Multilingual', desc: 'Hindi & English' },
+    { icon: '🔒', label: 'Privacy First', desc: 'Your data, your choice' },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-2 px-4 pb-3">
+      {pills.map((p) => (
+        <div
+          key={p.label}
+          className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2.5"
+        >
+          <span className="text-base" aria-hidden="true">{p.icon}</span>
+          <div className="min-w-0">
+            <p className="text-foreground truncate text-[11px] font-semibold">{p.label}</p>
+            <p className="text-muted-foreground truncate text-[10px]">{p.desc}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Exercise Error Card ────────────────────────────────────────────────────
+
+function ExerciseErrorCard({ onRetry }: { onRetry: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 backdrop-blur-sm"
+      role="alert"
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <Warning size={16} weight="duotone" className="shrink-0 text-amber-400" aria-hidden="true" />
+        <span className="text-amber-400 text-sm font-semibold">Unable to fetch practice question</span>
+      </div>
+      <p className="text-muted-foreground mb-3 text-xs">Checking connection...</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20"
+      >
+        <ArrowCounterClockwise size={11} weight="bold" aria-hidden="true" /> Retry
+      </button>
+    </motion.div>
   );
 }
 
@@ -371,30 +447,78 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
   const { messages } = useSessionMessages(session);
   const { state: agentState } = useAgent();
 
-  const [transcriptOpen, setTranscriptOpen] = useState(false);
-  const [activityOpen, setActivityOpen] = useState(false);
   const [chatInputOpen, setChatInputOpen] = useState(false);
+  const [mobileTranscriptOpen, setMobileTranscriptOpen] = useState(false);
 
-  // Task 16.1 & 16.2 — auto-open transcript whenever a new message arrives
+  // Auto-open mobile transcript on new message
   const prevMessageCount = useRef(messages.length);
   useEffect(() => {
     if (messages.length > prevMessageCount.current) {
-      setTranscriptOpen(true);
+      setMobileTranscriptOpen(true);
       prevMessageCount.current = messages.length;
     }
   }, [messages.length]);
 
+  // Tool events → exercise / feedback / error state
+  const toolEvents = useToolEvents();
+  const [activeExercise, setActiveExercise] = useState<Omit<ExerciseCardProps, 'className'> | null>(null);
+  const [activeFeedback, setActiveFeedback] = useState<Omit<FeedbackCardProps, 'className'> | null>(null);
+  const [exerciseError, setExerciseError] = useState(false);
+  const prevToolEventCount = useRef(0);
+
+  useEffect(() => {
+    const currentCount = toolEvents.length;
+    if (currentCount <= prevToolEventCount.current) return;
+    const newEvents = toolEvents.slice(prevToolEventCount.current);
+    prevToolEventCount.current = currentCount;
+
+    for (const event of newEvents) {
+      if (event.type === 'exercise_ready') {
+        setActiveExercise({
+          topic: event.topic ?? 'Practice',
+          level: event.level,
+          difficulty: event.difficulty ?? 'medium',
+          question: event.question ?? '',
+          dataSource: event.data_source,
+        });
+        setActiveFeedback(null);
+        setExerciseError(false);
+      } else if (event.type === 'answer_scored') {
+        const resultMap: Record<string, string> = {
+          correct: 'Well done! You got it right.',
+          partially_correct: "You're close! Almost there.",
+          incorrect: "Let's review this concept together.",
+        };
+        setActiveFeedback({
+          result: (event.result ?? 'incorrect') as FeedbackCardProps['result'],
+          explanation: resultMap[event.result ?? 'incorrect'] ?? 'Answer evaluated.',
+          topic: event.topic,
+        });
+        setActiveExercise(null);
+        setExerciseError(false);
+      } else if (event.type === 'tool_error' && event.tool === 'get_next_exercise') {
+        setActiveExercise(null);
+        setExerciseError(true);
+      }
+    }
+  }, [toolEvents]);
+
+  // Clear cards when session ends
+  useEffect(() => {
+    if (!session.isConnected) {
+      setActiveExercise(null);
+      setActiveFeedback(null);
+      setExerciseError(false);
+    }
+  }, [session.isConnected]);
+
   const userId = getUserId();
   const orbState = agentStateToOrb(agentState);
-  const stateConfig = STATE_CONFIG[orbState];
   const handleDisconnect = onDisconnect ?? session.end;
 
   return (
     <section
-      className={cn(
-        'bg-background fixed inset-0 z-10 flex h-full w-full flex-col overflow-hidden',
-        className
-      )}
+      className={cn('bg-background fixed inset-0 z-10 flex h-full w-full flex-col overflow-hidden', className)}
       aria-label="Vidya Learning Room"
     >
       {/* Ambient background */}
@@ -406,119 +530,73 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
 
       {/* ── Top navbar ── */}
       <div className="bg-background/80 relative z-20 flex shrink-0 items-center justify-between border-b border-white/5 px-4 py-2.5 backdrop-blur-sm md:px-8">
-        <div className="flex flex-col leading-tight">
-          <span className="text-foreground text-sm font-bold tracking-tight">VIDYA</span>
-          <span className="text-muted-foreground text-[9px] tracking-widest uppercase">
-            Learning Room
-          </span>
+        <div className="flex items-center gap-2.5">
+          <Image src="/vidya-logo.png" alt="Vidya" width={32} height={32} className="shrink-0 rounded-lg" />
+          <div className="flex flex-col leading-tight">
+            <span className="text-foreground text-sm font-bold tracking-tight">VIDYA</span>
+            <span className="text-muted-foreground text-[9px] tracking-widest uppercase">Learning Room</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Memory indicator */}
           <span className="border-primary/20 bg-primary/5 text-primary hidden items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-semibold sm:flex">
             <Brain size={12} weight="duotone" aria-hidden="true" /> Memory: Your choice
-          </span>{' '}
+          </span>
           {/* Language badge */}
           <span className="text-muted-foreground hidden items-center gap-1.5 rounded-full border border-white/8 px-3 py-1 text-[10px] sm:flex">
             <Globe size={12} weight="regular" aria-hidden="true" /> हिंदी · English
           </span>
-          {/* Activity toggle */}
-          <button
-            type="button"
-            onClick={() => setActivityOpen((v) => !v)}
-            className={cn(
-              'flex items-center gap-1 rounded-full border px-3 py-1 font-mono text-[10px] font-bold tracking-widest uppercase transition-colors duration-150',
-              activityOpen
-                ? 'border-primary/30 bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:text-foreground border-white/10 hover:border-white/20'
-            )}
-            aria-label="Toggle AI activity"
-          >
-            <Lightning size={11} weight="bold" aria-hidden="true" /> Activity
-          </button>
-          {/* Transcript toggle */}
-          <button
-            type="button"
-            onClick={() => setTranscriptOpen((v) => !v)}
-            className={cn(
-              'flex items-center gap-1 rounded-full border px-3 py-1 font-mono text-[10px] font-bold tracking-widest uppercase transition-colors duration-150',
-              transcriptOpen
-                ? 'border-primary/30 bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:text-foreground border-white/10 hover:border-white/20'
-            )}
-            aria-label="Toggle transcript"
-          >
-            <ChatTeardrop size={11} weight="regular" aria-hidden="true" /> Transcript
-          </button>
         </div>
       </div>
 
-      {/* ── Body: center column + optional right panel ── */}
+      {/* ── Body: 70/30 split on desktop ── */}
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
-        {/* ── Center scrollable column ── */}
+
+        {/* ── Left / Center column (70%) ── */}
         <div className="flex flex-1 flex-col overflow-y-auto">
-          {/* Orb + state section */}
-          <div className="flex flex-col items-center justify-center px-4 pt-8 pb-4 md:pt-12">
+          {/* Orb + state badge section */}
+          <div className="flex flex-col items-center px-4 pt-8 pb-4 md:pt-12">
             <VidyaOrb state={orbState} />
+            <StateBadge orbState={orbState} />
+          </div>
 
-            {/* State badge */}
-            <div
-              className="mt-6 flex items-center gap-2"
-              role="status"
-              aria-live="polite"
-              aria-label={stateConfig.sublabel}
-            >
-              <span className={cn('h-2 w-2 rounded-full', stateConfig.dot)} aria-hidden="true" />
-              <span
-                className={cn(
-                  'flex items-center gap-1.5 font-mono text-xs font-bold tracking-[0.2em] uppercase',
-                  stateConfig.color
-                )}
-              >
-                <stateConfig.IconComponent size={14} weight="bold" aria-hidden="true" />
-                {stateConfig.label}
-              </span>
-              <span className={cn('h-2 w-2 rounded-full', stateConfig.dot)} aria-hidden="true" />
+          {/* Learning Context Bar — only when memory found */}
+          <LearningContextBar userId={userId} />
+
+          {/* ── Exercise Card / Feedback Card / Error Card ── */}
+          <div className="mx-auto w-full max-w-sm px-4 pb-2 pt-4">
+            <AnimatePresence mode="wait">
+              {activeExercise && <ExerciseCard key="exercise" {...activeExercise} />}
+              {activeFeedback && <FeedbackCard key="feedback" {...activeFeedback} />}
+              {exerciseError && !activeExercise && !activeFeedback && (
+                <ExerciseErrorCard key="exercise-error" onRetry={handleDisconnect} />
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Inspiration chips — hidden when exercise/feedback card is active */}
+          {!activeExercise && !activeFeedback && !exerciseError && (
+            <div className="flex flex-col items-center gap-3 px-4 py-4">
+              <p className="text-muted-foreground text-[10px] font-semibold tracking-widest uppercase">
+                Need inspiration? Try asking:
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <InspirationChip icon={<MathOperations size={12} weight="bold" />} text="Explain Algebra" />
+                <InspirationChip icon={<Atom size={12} weight="bold" />} text="Explain Biology" />
+                <InspirationChip icon={<MathOperations size={12} weight="regular" />} text="Practice Fractions" />
+                <InspirationChip icon={<Question size={12} weight="bold" />} text="Quiz Me" />
+                <InspirationChip icon={<ArrowCounterClockwise size={12} weight="bold" />} text="Revise Yesterday's Topic" />
+                <InspirationChip icon={<BookOpen size={12} weight="bold" />} text="हिंदी में समझाओ" />
+              </div>
             </div>
+          )}
 
-            {/* Sublabel */}
-            <p className="text-muted-foreground mt-2 text-sm font-medium">{stateConfig.sublabel}</p>
-          </div>
-
-          {/* ── Inspiration chips ── */}
-          <div className="flex flex-col items-center gap-3 px-4 py-4">
-            <p className="text-muted-foreground text-[10px] font-semibold tracking-widest uppercase">
-              Need inspiration? Try asking:
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <InspirationChip
-                icon={<MathOperations size={12} weight="bold" />}
-                text="Explain Algebra"
-              />
-              <InspirationChip icon={<Atom size={12} weight="bold" />} text="Explain Biology" />
-              <InspirationChip
-                icon={<MathOperations size={12} weight="regular" />}
-                text="Practice Fractions"
-              />
-              <InspirationChip icon={<Question size={12} weight="bold" />} text="Quiz Me" />
-              <InspirationChip
-                icon={<ArrowCounterClockwise size={12} weight="bold" />}
-                text="Revise Yesterday's Topic"
-              />
-              <InspirationChip icon={<BookOpen size={12} weight="bold" />} text="हिंदी में समझाओ" />
-            </div>
-          </div>
-
-          {/* ── Memory journey card (only if real data) ── */}
-          <div className="px-4 pb-4">
-            <MemoryJourneyCard userId={userId} />
-          </div>
-
-          {/* ── Mobile: activity panel accordion ── */}
+          {/* Mobile: Activity panel accordion */}
           <div className="px-4 pb-2 md:hidden">
             <details className="border-border/40 rounded-xl border backdrop-blur-sm">
               <summary className="text-muted-foreground flex cursor-pointer items-center gap-1.5 px-4 py-2 font-mono text-[10px] font-bold tracking-widest uppercase select-none">
-                <Lightning size={11} weight="bold" aria-hidden="true" /> AI Activity
+                AI Activity
               </summary>
               <div className="px-4 pb-3">
                 <AIActivityPanel />
@@ -526,127 +604,88 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
             </details>
           </div>
 
-          {/* Mobile transcript */}
+          {/* Mobile: transcript collapsible at bottom */}
           <div className="px-4 pb-2 md:hidden">
             <details
               className="border-border/40 rounded-xl border backdrop-blur-sm"
-              open={transcriptOpen}
+              open={mobileTranscriptOpen}
             >
               <summary
                 className="text-muted-foreground flex cursor-pointer items-center gap-1.5 px-4 py-2 font-mono text-[10px] font-bold tracking-widest uppercase select-none"
                 onClick={(e) => {
                   e.preventDefault();
-                  setTranscriptOpen((v) => !v);
+                  setMobileTranscriptOpen((v) => !v);
                 }}
               >
                 <ChatTeardrop size={11} weight="regular" aria-hidden="true" />
                 Live Transcript {messages.length > 0 && `(${messages.length})`}
               </summary>
-              <div className="px-2 pb-3">
-                {messages.length === 0 ? (
-                  <p className="text-muted-foreground px-2 py-4 text-center text-xs">
-                    Transcript will appear as you speak. Hindi → देवनागरी
-                  </p>
-                ) : (
-                  <AgentChatTranscript
-                    agentState={agentState}
-                    messages={messages}
-                    className="max-h-64 [&>div>div]:px-3 [&>div>div]:py-3"
-                  />
-                )}
+              <div className="max-h-64 overflow-y-auto px-2 pb-3">
+                <CustomTranscript messages={messages} agentState={agentState} />
               </div>
             </details>
+          </div>
+
+          {/* Mobile: feature pills + context inline */}
+          <div className="md:hidden">
+            <FeaturePills />
+            <div className="px-4 pb-4">
+              <LearningContextPanel userId={userId} />
+            </div>
           </div>
 
           {/* Spacer so content doesn't hide behind control bar */}
           <div className="shrink-0 pb-36 md:pb-32" />
         </div>
 
-        {/* ── Desktop right panel: Activity + Transcript ── */}
-        <AnimatePresence initial={false}>
-          {(activityOpen || transcriptOpen) && (
-            <motion.aside
-              key="right-panel"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 320, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeInOut' }}
-              className="hidden shrink-0 flex-col gap-3 overflow-y-auto border-l border-white/5 p-4 md:flex"
-            >
-              {activityOpen && <AIActivityPanel />}
-              {transcriptOpen && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-foreground flex items-center gap-1.5 text-xs font-bold tracking-widest uppercase">
-                      <ChatTeardrop size={13} weight="regular" aria-hidden="true" />
-                      Live Transcript
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => setTranscriptOpen(false)}
-                      className="text-muted-foreground hover:text-foreground rounded-sm p-0.5 font-mono text-[10px] transition-colors"
-                      aria-label="Hide transcript"
-                    >
-                      <X size={13} weight="bold" aria-hidden="true" />
-                    </button>
-                  </div>
-                  <div className="border-border/40 min-h-[200px] flex-1 overflow-hidden rounded-xl border">
-                    {messages.length === 0 ? (
-                      <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-                        <ChatTeardrop
-                          size={28}
-                          weight="regular"
-                          className="text-muted-foreground/40"
-                          aria-hidden="true"
-                        />
-                        <p className="text-muted-foreground text-xs">
-                          Transcript will appear as you speak.
-                        </p>
-                        <p className="text-muted-foreground/60 text-[11px]">
-                          Hindi → देवनागरी · English → Latin
-                        </p>
-                      </div>
-                    ) : (
-                      <AgentChatTranscript
-                        agentState={agentState}
-                        messages={messages}
-                        className="h-full [&>div>div]:px-4 [&>div>div]:py-4"
-                      />
-                    )}
-                  </div>
-                  <p className="text-muted-foreground/50 text-center text-[10px]">
-                    Hindi → देवनागरी · English → Latin
-                  </p>
-                  <LearningContextPanel userId={userId} />
-                </div>
+        {/* ── Right panel (30%, ~380px) — always visible on desktop ── */}
+        <aside className="hidden w-[380px] shrink-0 flex-col border-l border-white/8 md:flex overflow-hidden">
+          <div className="flex flex-1 flex-col overflow-y-auto">
+            {/* Transcript heading */}
+            <div className="flex shrink-0 items-center gap-2 border-b border-white/5 px-4 py-3">
+              <ChatTeardrop size={14} weight="regular" className="text-primary" aria-hidden="true" />
+              <h3 className="text-foreground text-xs font-bold tracking-widest uppercase">Live Transcript</h3>
+              {messages.length > 0 && (
+                <span className="bg-primary/10 text-primary ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold">
+                  {messages.length}
+                </span>
               )}
-            </motion.aside>
-          )}
-        </AnimatePresence>
+            </div>
+
+            {/* Custom chat bubbles transcript */}
+            <div className="min-h-[200px] flex-1 overflow-hidden">
+              <CustomTranscript messages={messages} agentState={agentState} />
+            </div>
+
+            {/* Feature pills */}
+            <div className="shrink-0 border-t border-white/5 pt-3">
+              <FeaturePills />
+            </div>
+
+            {/* Learning Context Panel */}
+            <div className="shrink-0 px-4 pb-4">
+              <LearningContextPanel userId={userId} />
+            </div>
+          </div>
+        </aside>
       </div>
 
       {/* ── Fixed bottom control bar ── */}
       <div className="absolute inset-x-0 bottom-0 z-50 px-4 pt-2 pb-4 md:px-12 md:pb-8">
-        {/* State sublabel above controls */}
-        <p
-          className={cn(
-            'mb-2 text-center font-mono text-[10px] font-semibold tracking-widest uppercase transition-colors duration-300',
-            stateConfig.color
-          )}
+        {/* Gradient fade */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-full h-24"
+          style={{ background: 'linear-gradient(to top, var(--background), transparent)' }}
           aria-hidden="true"
-        >
-          {stateConfig.sublabel}
+        />
+        {/* Powered by footer */}
+        <p className="text-muted-foreground/40 mb-1.5 text-center text-[10px]">
+          Powered by Murf Falcon TTS · LiveKit Agents · Deepgram Nova-3
         </p>
         <div className="relative mx-auto max-w-md">
           <AgentControlBar
             variant="livekit"
-            controls={{
-              leave: true,
-              microphone: true,
-              chat: true,
-              camera: false,
-              screenShare: false,
-            }}
+            controls={{ leave: true, microphone: true, chat: true, camera: false, screenShare: false }}
             isChatOpen={chatInputOpen}
             onIsChatOpenChange={setChatInputOpen}
             isConnected={session.isConnected}
