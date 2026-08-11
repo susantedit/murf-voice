@@ -1,6 +1,8 @@
 import asyncio
 import json
 import logging
+import os
+import random
 import re as _re
 
 from dotenv import load_dotenv
@@ -23,6 +25,11 @@ from rag.retriever import init_retriever
 from rag.retriever import search_knowledge_base as _kb_search
 from services import exercise_service, memory_service
 
+try:
+    from services import call_service
+except ImportError:
+    call_service = None  # type: ignore[assignment]
+
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local", override=False)
@@ -30,10 +37,6 @@ load_dotenv(".env.local", override=False)
 # ──────────────────────────────────────────────────────────────────────────────
 # Day 2 — Learning & Literacy: Vidya, the voice learning assistant
 # ──────────────────────────────────────────────────────────────────────────────
-
-
-
-
 
 
 SYSTEM_PROMPT = """
@@ -79,6 +82,14 @@ NEW USER: Use standard greeting.
 
 WRONG ANSWERS: Be warm, give hint, let them retry, then explain.
 NEVER diagnose learning disabilities. NEVER shame wrong answers.
+
+OUTBOUND CALL RULES (Day 6):
+- You may be in an OUTBOUND session — the student did not initiate this call.
+- Your on_enter greeting already covered identity, opt-out, and asked what to practice. Do NOT ask for the student's name — they didn't ask for this call.
+- Start helping immediately after the greeting. If they say a topic, get them an exercise.
+- If the student says "stop calls", "बंद करो", "no more calls", "unsubscribe", or anything indicating they want no more calls → call set_call_opt_out, then confirm: "ठीक है, मैं आगे से call नहीं करूँगी।"
+- After confirming opt-out, end the session gracefully.
+- All Hindi text MUST be in Devanagari script. Never romanize Hindi.
 """
 
 
@@ -134,11 +145,14 @@ class Assistant(Agent):
         user_id: str = "anonymous",
         memory_task: asyncio.Task | None = None,
         room: rtc.Room | None = None,
+        is_outbound: bool = False,
     ) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
         self._user_id = user_id
         self._memory_task = memory_task
         self._room = room
+        self._is_outbound = is_outbound
+        self._call_id: int | None = None
         # Track what we've auto-detected but not yet saved this session
         self._detected_name: str | None = None
         self._detected_class: str | None = None
@@ -198,13 +212,11 @@ class Assistant(Agent):
             logger.exception("on_user_turn_completed failed — continuing without save")
 
     async def on_enter(self) -> None:
-        """Speak a greeting directly (no LLM call) to avoid Gemini's function-call
-        turn-ordering constraint on the very first turn."""
-        # Resolve memory with a short timeout so we can personalise the greeting.
+        """Speak a greeting — outbound or inbound depending on session type."""
         memory: dict = {"found": False}
         if self._memory_task is not None:
             try:
-                memory = await asyncio.wait_for(self._memory_task, timeout=2.0)
+                memory = await asyncio.wait_for(self._memory_task, timeout=5.0)
             except asyncio.TimeoutError:
                 logger.info(
                     "Memory lookup timed out for user_id=%r — greeting as new user.",
@@ -215,8 +227,15 @@ class Assistant(Agent):
                     "Unexpected error in memory_task for user_id=%r", self._user_id
                 )
 
-        # Use session.say() — speaks directly via TTS, no LLM round-trip, no tool calls.
-        # This avoids the Gemini 400 "function call turn must follow user turn" error.
+        if self._is_outbound:
+            await self._emit_tool_event("call_status", {"status": "CALLING"})
+            logger.info("Outbound greeting memory=%r", memory)
+            await self._outbound_greeting(memory)
+        else:
+            await self._inbound_greeting(memory)
+
+    async def _inbound_greeting(self, memory: dict) -> None:
+        """Original inbound greeting (Day 1-5 behaviour unchanged)."""
         if memory.get("found") and memory.get("name"):
             name = memory["name"]
             topics = memory.get("topics") or []
@@ -237,8 +256,36 @@ class Assistant(Agent):
                 "I can help you understand concepts, practice questions, or revise a topic. "
                 "What would you like to learn today?"
             )
-
         await self.session.say(greeting)
+
+    async def _outbound_greeting(self, memory: dict) -> None:
+        """Outbound greeting — identifies Vidya, states purpose, explains opt-out."""
+        name = memory.get("name") if memory.get("found") else None
+        topics = memory.get("topics") or []
+        last_topic = topics[-1] if topics else None
+
+        if name:
+            intro = (
+                f"नमस्ते {name}! मैं Vidya AI Learning Assistant हूँ। "
+                "मैं आपके daily learning practice session के लिए call कर रही हूँ। "
+                "अगर आप future calls बंद करना चाहते हैं तो मुझे बता सकते हैं।"
+            )
+            if last_topic:
+                intro += (
+                    f" पिछली बार हम {last_topic} practice कर रहे थे। "
+                    "आज उसी topic को continue करें, या कोई नया topic try करें?"
+                )
+            else:
+                intro += " आज आप क्या practice करना चाहेंगे?"
+        else:
+            intro = (
+                "नमस्ते! मैं Vidya AI Learning Assistant हूँ। "
+                "मैं आपके daily learning practice के लिए call कर रही हूँ। "
+                "अगर आप future calls बंद करना चाहते हैं तो मुझे बता सकते हैं। "
+                "आज आप किस subject में practice करना चाहेंगे — "
+                "Math, Science, English, या कोई और topic?"
+            )
+        await self.session.say(intro)
 
     @function_tool
     async def get_learner_memory(self, placeholder: str = "") -> str:
@@ -410,8 +457,25 @@ class Assistant(Agent):
             )
         return json.dumps(result)
 
+    @function_tool
+    async def set_call_opt_out(self, placeholder: str = "") -> str:
+        """
+        Opt the current student out of future scheduled calls.
+        Call this ONLY when the student explicitly says they want no more calls
+        (e.g. "stop calls", "बंद करो", "unsubscribe", "no more calls").
+        Returns {"success": true} on success.
+        The placeholder parameter is unused — pass an empty string.
+        """
+        if call_service is None:
+            return json.dumps({"success": False, "error": "call_service_unavailable"})
+        result = await call_service.set_call_opt_out(self._user_id)
+        return json.dumps(result)
+
 
 server = AgentServer()
+
+# Module-level set to keep background task references alive (prevents GC).
+_background_tasks: set[asyncio.Task] = set()
 
 
 def prewarm(proc: JobProcess) -> None:
@@ -437,11 +501,19 @@ async def my_agent(ctx: JobContext) -> None:
 
     await ctx.connect()
 
-    # The learner joins with identity = vidya_user_id from the frontend token.
-    # local_participant is the agent worker — use the remote learner instead.
+    # Parse outbound metadata from AgentDispatch (Day 6)
+    import contextlib
+
+    _job_metadata: dict = {}
+    with contextlib.suppress(ValueError, TypeError):
+        _job_metadata = json.loads(getattr(ctx.job, "metadata", None) or "{}")
+    _is_outbound: bool = bool(_job_metadata.get("outbound", False))
+    _outbound_user_id: str = _job_metadata.get("user_id", "")
+
     participant = await ctx.wait_for_participant()
-    user_id = participant.identity or f"anon-{ctx.room.name}"
-    logger.info("Session started for user_id=%r", user_id)
+    # For outbound calls use the user_id from metadata; fall back to participant identity
+    user_id = _outbound_user_id or participant.identity or f"anon-{ctx.room.name}"
+    logger.info("Session started for user_id=%r outbound=%r", user_id, _is_outbound)
 
     # Prefetch SQLite memory while TTS/STT warm up so on_enter can greet by name
     # on the very first utterance without waiting for the user to speak again.
@@ -451,9 +523,6 @@ async def my_agent(ctx: JobContext) -> None:
 
     # ── Groq key rotation — add up to 4 keys in .env.local as GROQ_API_KEY_1..4
     # Falls back to GROQ_API_KEY if numbered keys are absent.
-    import os
-    import random
-
     groq_keys = [
         k
         for k in [
@@ -482,7 +551,12 @@ async def my_agent(ctx: JobContext) -> None:
     )
 
     await session.start(
-        agent=Assistant(user_id=user_id, memory_task=memory_task, room=ctx.room),
+        agent=Assistant(
+            user_id=user_id,
+            memory_task=memory_task,
+            room=ctx.room,
+            is_outbound=_is_outbound,
+        ),
         room=ctx.room,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
@@ -495,6 +569,18 @@ async def my_agent(ctx: JobContext) -> None:
             ),
         ),
     )
+
+    # Start call scheduler if enabled (Day 6)
+    if os.getenv("SCHEDULER_ENABLED") == "1":
+        try:
+            from scheduler.call_scheduler import run_scheduler
+
+            _t = asyncio.create_task(run_scheduler())
+            _background_tasks.add(_t)
+            _t.add_done_callback(_background_tasks.discard)
+            logger.info("Call scheduler started.")
+        except Exception:
+            logger.exception("Failed to start call scheduler — continuing without it.")
 
 
 if __name__ == "__main__":

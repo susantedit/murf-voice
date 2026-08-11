@@ -94,7 +94,34 @@ def init_db() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_attempts_user ON exercise_attempts(user_id);
             CREATE INDEX IF NOT EXISTS idx_attempts_exercise ON exercise_attempts(user_id, exercise_id);
+
+            CREATE TABLE IF NOT EXISTS call_history (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id          TEXT    NOT NULL,
+                started_at       TEXT    NOT NULL,
+                ended_at         TEXT,
+                duration_seconds INTEGER,
+                topic            TEXT,
+                performance      TEXT,
+                status           TEXT    NOT NULL,
+                retry_of         INTEGER,
+                retry_attempted  INTEGER DEFAULT 0,
+                FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_callhist_user ON call_history(user_id);
         """)
+
+        # Add new columns to users table idempotently (Day 6)
+        import contextlib
+
+        for _col_sql in [
+            "ALTER TABLE users ADD COLUMN preferred_time TEXT",
+            "ALTER TABLE users ADD COLUMN call_opt_out INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN sip_uri TEXT",
+        ]:
+            with contextlib.suppress(sqlite3.OperationalError):
+                conn.execute(_col_sql)
 
 
 # Run once at import time so any module that does `from src.db.database import ...`

@@ -428,3 +428,120 @@ uv run pytest tests/test_exercise_service.py -v
 # Run memory tests only
 uv run pytest tests/test_memory.py -v
 ```
+
+## Day 6 — Outbound Calls
+
+### What was built
+
+Day 6 adds proactive outbound SIP calling to Vidya. The backend can now ring a student's Linphone SIP client at a scheduled time, join the same LiveKit room as the student, and conduct a full voice learning session — without the student having to open the app.
+
+New pieces:
+- **`src/db/call_repository.py`** — call history CRUD (`call_history` table + new `users` columns: `preferred_time`, `sip_uri`, `call_opt_out`)
+- **`src/services/call_service.py`** — LiveKit SIP dispatch wrapper + `set_call_opt_out` helper
+- **`src/scheduler/call_scheduler.py`** — asyncio loop (60 s tick) that fires outbound calls at the student's preferred time
+- **`src/api/call_server.py`** — REST endpoints: `GET /api/calls/{user_id}` (call history) and `POST /api/memory/schedule` (save preferred time + SIP URI)
+- **`src/agent.py`** — outbound greeting branch in `on_enter()`, new `set_call_opt_out` function tool, Day 6 `SYSTEM_PROMPT` additions
+- **Frontend** — Call Schedule settings panel, Practice History panel, Outbound Call Dashboard (animated orb + status label), Student Dashboard card, hero redesign
+
+### Architecture
+
+```
+[SQLite DB] → [call_scheduler.py] → [call_service.py] → [LiveKit SIP Bridge] → [Linphone] → [Vidya Agent]
+```
+
+In more detail:
+
+```
+[SQLite DB]
+    │  preferred_time, sip_uri per user
+    ▼
+[call_scheduler.py]  ── asyncio loop (60 s tick)
+    │  fires when |now − preferred_time| ≤ 5 min AND no call today
+    ▼
+[call_service.py]  ── livekit.api.SIPClient
+    │  create_sip_participant() → Linphone rings
+    ▼
+[LiveKit SIP Bridge]  ── outbound SIP trunk (sip.linphone.org)
+    │
+    ▼
+[Linphone SIP Client]  ── student's desktop or mobile
+    │  RTP audio
+    ▼
+[Vidya Agent (agent.py)]  ── joins same room, detects _is_outbound=True
+    │  outbound greeting → full learning session
+    ▼
+Murf Falcon TTS → student hears Vidya
+Deepgram STT   → Vidya hears student
+```
+
+### Linphone setup (student side)
+
+1. Go to [sip.linphone.org](https://www.linphone.org/freesip/home) and create a free account.  
+   Your SIP address will be `sip:yourusername@sip.linphone.org`.
+2. Download the Linphone desktop app from [linphone.org/downloads](https://www.linphone.org/en/downloads/linphone).
+3. Open Linphone → **Preferences → SIP Accounts → Add account**.
+4. Enter your SIP address and password, save. The status indicator should turn green (registered).
+5. Keep Linphone running and registered when you want to receive Vidya's calls.
+
+### SIP configuration (backend side)
+
+Vidya places calls through a LiveKit SIP trunk. You need to create one outbound trunk in the LiveKit dashboard and copy its ID into your env file.
+
+1. Log in to [LiveKit Cloud](https://cloud.livekit.io/) → **SIP → Trunks → Create Trunk**.
+2. Set the trunk to **Outbound**, destination domain `sip.linphone.org`.
+3. Copy the generated trunk ID (looks like `ST_xxxxxxxxxxxx`).
+4. Add it to `backend/.env.local` (see env var table below).
+
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `LIVEKIT_SIP_TRUNK_ID` | Yes (for outbound) | LiveKit SIP outbound trunk ID (`ST_…`). If unset, the scheduler starts but all SIP dispatches return `{"success": false, "error": "no_sip_trunk"}` — inbound sessions still work. |
+| `SCHEDULER_ENABLED` | No (default `1`) | Set to `0` to disable the call scheduler entirely (e.g. in local dev when you don't want calls firing). |
+| `LINPHONE_UNAVAILABLE_SIMULATION` | No (default `0`) | Set to `1` to make `dispatch_outbound_sip_call` return a simulated failure immediately without making a real SIP call. Useful for testing the retry/missed-call flow without a real Linphone account. |
+
+### Testing
+
+#### Simulate a missed call (no real SIP required)
+
+```bash
+LINPHONE_UNAVAILABLE_SIMULATION=1 uv run python src/agent.py dev
+```
+
+With this flag set, every outbound dispatch returns `{"success": false, "error": "linphone_unavailable"}` and writes a `missed` record to `call_history`. After 10 minutes the scheduler will attempt a retry. You can verify the row in `data/vidya.db`:
+
+```bash
+sqlite3 data/vidya.db "SELECT * FROM call_history;"
+```
+
+#### Run the scheduler manually
+
+The scheduler starts automatically when the agent starts. To run it standalone for inspection:
+
+```bash
+uv run python -c "
+import asyncio
+from src.scheduler.call_scheduler import run_scheduler
+asyncio.run(run_scheduler())
+"
+```
+
+It will print a log line every 60 seconds showing which users were checked.
+
+#### End-to-end test with real Linphone
+
+1. Complete the Linphone setup above and ensure the app shows **Registered**.
+2. Open the frontend, go to the **Call Schedule** panel, enter your SIP URI and a time 2 minutes from now, and click Save.
+3. Wait — Linphone will ring. Answer the call.
+4. Verify: Vidya's first sentence identifies herself ("मैं Vidya AI Learning Assistant हूँ") and offers the opt-out option.
+5. If your name and last topic are in memory, Vidya will mention them.
+6. Say "stop calls" — Vidya confirms opt-out and ends the session gracefully.
+7. Open the **Practice History** panel in the frontend and confirm the call record appears.
+
+### Limitations
+
+- **SIP trunk required.** Outbound calls cannot be placed without a LiveKit SIP outbound trunk configured in your LiveKit Cloud project. Without `LIVEKIT_SIP_TRUNK_ID`, the scheduler runs harmlessly but never places calls.
+- **Linphone must be registered and online.** If Linphone is closed or loses its SIP registration, calls will be recorded as `missed` and a single retry is attempted after 10 minutes. There is no further retry after that.
+- **One call per student per day.** The scheduler checks `call_exists_today()` before every dispatch. Duplicate calls on the same calendar day are silently skipped.
+- **±5 minute drift window.** If the agent server is down at the student's preferred time and comes back more than 5 minutes later, the call is skipped until the next day.
+- **No PSTN support.** Calls go to SIP clients only (Linphone, Zoiper, etc.). Calling a regular phone number requires a PSTN-enabled SIP trunk, which is not configured here.

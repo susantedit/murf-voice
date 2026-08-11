@@ -92,30 +92,36 @@ pnpm install
 
 ### Step 5: Run it
 
-Open **three separate terminals** from the repo root:
+Open **three separate terminals** from `f:\murf-voice\`:
 
-**Terminal 1 — Backend agent**
+**Terminal 1 — Backend agent** (use `start` on Windows, NOT `dev`)
 
 ```powershell
-cd backend
-uv run python src/agent.py dev
+cd f:\murf-voice\backend
+uv run python src/agent.py start
 ```
 
-**Terminal 2 — Memory API server** (Day 4 persistent memory)
+**Terminal 2 — Memory + Call API server** (port 8888)
 
 ```powershell
-cd backend
+cd f:\murf-voice\backend
 uv run python -m src.api.memory_server
 ```
 
 **Terminal 3 — Frontend**
 
 ```powershell
-cd frontend
+cd f:\murf-voice\frontend
 pnpm dev
 ```
 
 Then open **http://localhost:3000** in your browser.
+
+> **Windows note:** Always use `start` not `dev` for the agent. The `dev` watch mode uses Unix `SIGKILL` which doesn't exist on Windows and will crash the process.
+
+> **Day 6 — Call from the browser:** Click **Call Now** in the top navbar. It reads your saved SIP URI from the schedule panel, rings your Linphone, waits for you to answer, then Vidya joins and speaks. Linphone must be open and showing green (registered) before clicking.
+
+> **Day 6 — Scheduled calls:** Set `SCHEDULER_ENABLED=1` in `backend/.env.local` and configure a call time in the "Daily Practice Call" panel on the homepage.
 
 > **Note:** You do NOT need to run a local LiveKit server — this project uses [LiveKit Cloud](https://cloud.livekit.io/). The `LIVEKIT_URL` in your `.env.local` points to the cloud instance.
 
@@ -234,33 +240,43 @@ murf-livekit-starter/
 ├── backend/                 # Python voice agent (LiveKit Agents + Murf Falcon)
 │   ├── src/
 │   │   ├── agent.py         # Agent entrypoint, pipeline (STT/LLM/TTS), system prompt
-│   │   ├── db/              # SQLite schema + repository (Day 4)
-│   │   ├── services/        # Memory service wrappers (Day 4)
+│   │   ├── db/              # SQLite schema + repositories (Days 4, 6)
+│   │   ├── services/        # Memory, exercise, call service wrappers (Days 4, 5, 6)
 │   │   ├── rag/             # LangChain RAG pipeline — loader, FAISS, retriever (Day 4)
+│   │   ├── scheduler/       # Outbound call scheduler — asyncio loop (Day 6)
 │   │   └── api/
-│   │       └── memory_server.py  # REST API on port 8888 (Day 4)
+│   │       ├── memory_server.py  # REST API on port 8888 (Days 4, 6)
+│   │       └── call_server.py    # Call history + schedule endpoints (Day 6)
 │   ├── data/
 │   │   ├── vidya.db         # SQLite database (gitignored, auto-created)
+│   │   ├── exercises/       # Local exercise dataset (Day 5)
 │   │   ├── knowledge/       # Drop PDFs/TXTs here for RAG
 │   │   └── vector_store/    # FAISS index (gitignored, auto-built)
-│   ├── tests/               # Agent + memory tests
+│   ├── tests/               # Agent + memory + call tests
 │   ├── .env.example         # Backend env template
 │   ├── pyproject.toml       # Python deps (uv)
 │   └── railway.toml         # Railway deploy config
 ├── frontend/                # Next.js UI for voice sessions
 │   ├── app/
-│   │   ├── page.tsx         # Main page
+│   │   ├── page.tsx         # Main page (hero, features, schedule panels)
 │   │   ├── memory/          # Memory management page at /memory (Day 4)
 │   │   └── api/token/       # LiveKit token endpoint
-│   ├── components/          # UI (agents-ui, app config, theme)
+│   ├── components/app/
+│   │   ├── welcome-view.tsx         # Landing page view
+│   │   ├── call-schedule-panel.tsx  # Set daily call time + SIP URI (Day 6)
+│   │   ├── practice-history-panel.tsx # Call history + progress stats (Day 6)
+│   │   ├── student-dashboard.tsx    # Student profile card (Day 6)
+│   │   └── outbound-call-dashboard.tsx # Live call status orb (Day 6)
 │   ├── hooks/
-│   │   └── useLearnerMemory.ts  # Memory API hook (Day 4)
+│   │   ├── useLearnerMemory.ts  # Memory API hook (Day 4)
+│   │   └── useCallStatus.ts     # Live call status hook (Day 6)
+│   ├── types/call.ts        # CallRecord, ScheduleConfig, CallStatusEvent (Day 6)
 │   ├── app-config.ts        # Branding, title, button text, accent
 │   ├── .env.example         # Frontend env template
 │   └── package.json         # Node deps (pnpm)
 ├── start_app.sh             # Start backend + frontend (macOS/Linux)
 ├── start_app.ps1            # Start backend + frontend (Windows)
-├── DAY_4_MEMORY.md          # Day 4 architecture documentation
+├── day6/linkedin.md         # Day 6 LinkedIn post
 └── README.md                # This file
 ```
 

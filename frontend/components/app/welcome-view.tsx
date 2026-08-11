@@ -11,17 +11,22 @@ import {
   BookOpen,
   Brain,
   CheckCircle,
+  Database,
   Globe,
   GraduationCap,
   Lightning,
   Lock,
   MathOperations,
   Microphone,
+  MusicNote,
   type Icon as PhosphorIcon,
   Question,
   ShieldCheck,
   Trash,
 } from '@phosphor-icons/react';
+import { CallSchedulePanel } from '@/components/app/call-schedule-panel';
+import { PracticeHistoryPanel } from '@/components/app/practice-history-panel';
+import { StudentDashboard } from '@/components/app/student-dashboard';
 import { Button } from '@/components/ui/button';
 import type { LearnerMemory } from '@/hooks/useLearnerMemory';
 import { cn } from '@/lib/shadcn/utils';
@@ -65,7 +70,7 @@ function EduIllustration() {
 
   const bubbles = [
     {
-      icon: '∑',
+      Icon: MathOperations,
       color: 'from-violet-500/20 to-violet-600/10',
       border: 'border-violet-400/30',
       text: 'text-violet-300',
@@ -74,7 +79,7 @@ function EduIllustration() {
       delay: 0,
     },
     {
-      icon: '⚛',
+      Icon: Atom,
       color: 'from-cyan-500/20 to-cyan-600/10',
       border: 'border-cyan-400/30',
       text: 'text-cyan-300',
@@ -83,7 +88,7 @@ function EduIllustration() {
       delay: 1,
     },
     {
-      icon: '🌍',
+      Icon: Globe,
       color: 'from-emerald-500/20 to-emerald-600/10',
       border: 'border-emerald-400/30',
       text: 'text-emerald-300',
@@ -92,7 +97,7 @@ function EduIllustration() {
       delay: 2,
     },
     {
-      icon: '♪',
+      Icon: MusicNote,
       color: 'from-amber-500/20 to-amber-600/10',
       border: 'border-amber-400/30',
       text: 'text-amber-300',
@@ -112,14 +117,14 @@ function EduIllustration() {
           variants={floatVariants}
           animate="animate"
           className={cn(
-            'absolute flex h-11 w-11 items-center justify-center rounded-full border bg-gradient-to-br text-lg backdrop-blur-sm',
+            'absolute flex h-11 w-11 items-center justify-center rounded-full border bg-gradient-to-br backdrop-blur-sm',
             b.color,
             b.border,
             b.x,
             b.y
           )}
         >
-          <span className={b.text}>{b.icon}</span>
+          <b.Icon size={20} weight="duotone" className={b.text} aria-hidden="true" />
         </motion.div>
       ))}
 
@@ -629,7 +634,7 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
       : undefined;
 
   return (
-    <div className="relative min-h-svh w-full overflow-hidden">
+    <div id="home" className="relative min-h-svh w-full overflow-hidden">
       <AmbientBackground />
 
       {/* ── Hero: above the fold ── */}
@@ -638,6 +643,36 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
           <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[55fr_45fr] lg:gap-12">
             {/* ── Left column: headline + CTA ── */}
             <div className="order-2 flex flex-col items-center text-center lg:order-1 lg:items-start lg:text-left">
+              {/* VIDYA wordmark — always visible */}
+              <div className="mb-4 flex flex-col items-center gap-1 lg:items-start">
+                <h1
+                  className="text-primary text-6xl font-black tracking-[0.15em] sm:text-7xl lg:text-8xl"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, oklch(0.70 0.24 264), oklch(0.55 0.28 285))',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  VIDYA
+                </h1>
+                {/* Subtitle, tagline, and body — shown when not connecting */}
+                {!connecting && (
+                  <>
+                    <p className="text-foreground/90 text-lg font-semibold tracking-tight sm:text-xl">
+                      Your Personal AI Learning Companion
+                    </p>
+                    <p className="text-primary/80 text-sm font-medium tracking-widest uppercase">
+                      Learn • Practice • Improve
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                      Voice-based learning in Hindi and English
+                    </p>
+                  </>
+                )}
+              </div>
+
               {/* Badge */}
               <div className="mb-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
                 <div
@@ -651,7 +686,7 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
                       aria-hidden="true"
                     />
                   )}
-                  {connecting ? 'Connecting to Vidya...' : 'VIDYA · AI Learning Assistant'}
+                  {connecting ? 'Connecting to Vidya...' : 'AI Learning Assistant'}
                 </div>
                 {!connecting && (
                   <Link href="/memory">
@@ -662,34 +697,27 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
                 )}
               </div>
 
-              {/* H1 */}
-              <h1 className="text-foreground mb-4 text-5xl leading-[1.1] font-extrabold tracking-tight sm:text-6xl lg:text-7xl">
-                {connecting ? (
-                  <>
-                    Getting your
-                    <br />
-                    <span className="text-primary">session ready...</span>
-                  </>
-                ) : isReturningUser && learnerName ? (
-                  <>
-                    Welcome back,
-                    <br />
-                    <span className="text-primary">{learnerName}</span>
-                  </>
-                ) : (
-                  <>
-                    Learn, Practice &amp; Improve —<br />
-                    <span className="text-primary">through voice.</span>
-                  </>
-                )}
-              </h1>
+              {/* Dynamic greeting (connecting state / returning user) */}
+              {(connecting || isReturningUser) && (
+                <p className="text-foreground mb-4 text-3xl leading-[1.15] font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
+                  {connecting ? (
+                    <>
+                      Getting your <span className="text-primary">session ready...</span>
+                    </>
+                  ) : isReturningUser && learnerName ? (
+                    <>
+                      Welcome back, <span className="text-primary">{learnerName}</span>
+                    </>
+                  ) : null}
+                </p>
+              )}
 
               {/* Description */}
               {!connecting && (
                 <p className="text-muted-foreground mb-3 max-w-md text-base leading-relaxed">
                   {isReturningUser
                     ? 'Great to see you again. Pick up where you left off or explore something new.'
-                    : 'Vidya is your AI voice tutor. Ask questions, practice exercises, and revise topics in Hindi, English, or both.'}
+                    : 'Ask questions, practice exercises, and revise topics — just speak.'}
                 </p>
               )}
 
@@ -703,6 +731,13 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
               {/* Returning user card */}
               {!connecting && isReturningUser && (
                 <ReturningUserCard lastTopic={lastTopic} onContinue={handleStart} />
+              )}
+
+              {/* Student dashboard — shown below returning user card, above CTA */}
+              {!connecting && (
+                <div className="mb-6 w-full">
+                  <StudentDashboard />
+                </div>
               )}
 
               {/* Primary CTA */}
@@ -780,6 +815,49 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
                     desc="Use Hindi, English, or Hinglish"
                   />
                 </div>
+              )}
+
+              {/* Features section */}
+              {!connecting && (
+                <section
+                  id="features"
+                  className="mb-8 flex w-full flex-col items-center gap-3 lg:items-start"
+                  aria-labelledby="features-heading"
+                >
+                  <p
+                    id="features-heading"
+                    className="text-muted-foreground text-xs font-medium tracking-wider uppercase"
+                  >
+                    Features
+                  </p>
+                  <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    <FeatureCard
+                      icon={<Brain size={18} weight="duotone" />}
+                      title="Personalized Learning"
+                      desc="Adapts to your level and topics"
+                    />
+                    <FeatureCard
+                      icon={<Database size={18} weight="duotone" />}
+                      title="AI Memory"
+                      desc="Remembers your progress across sessions"
+                    />
+                    <FeatureCard
+                      icon={<Globe size={18} weight="duotone" />}
+                      title="Hindi + English Support"
+                      desc="Learn in Hindi, English, or Hinglish"
+                    />
+                    <FeatureCard
+                      icon={<Microphone size={18} weight="duotone" />}
+                      title="Voice Conversations"
+                      desc="Just speak — no typing needed"
+                    />
+                    <FeatureCard
+                      icon={<ShieldCheck size={18} weight="duotone" />}
+                      title="Privacy First"
+                      desc="Your data stays yours, always"
+                    />
+                  </div>
+                </section>
               )}
 
               {/* Prompt chips */}
@@ -906,10 +984,16 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
               </span>
             </div>
 
-            {/* ── Right column: illustration + orb ── */}
+            {/* ── Right column: illustration + orb + schedule ── */}
             <div className="order-1 flex flex-col items-center justify-center gap-8 lg:order-2">
               <EduIllustration />
               <VoiceOrb state={orbState} />
+              {/* Call schedule panel — visible right on the homepage */}
+              {!connecting && (
+                <div className="w-full max-w-sm" id="schedule">
+                  <CallSchedulePanel />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -938,6 +1022,9 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
           </a>
         </p>
       </div>
+
+      {/* ── About section (anchor for nav) ── */}
+      <section id="about" aria-label="About" />
     </div>
   );
 };

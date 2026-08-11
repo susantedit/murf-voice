@@ -1,9 +1,11 @@
 """
-Memory REST API server.
+Memory REST API server — Day 6 extended with call history and scheduling.
 
-Exposes a minimal HTTP server on port 8888 (or MEMORY_API_PORT) with three
-endpoints for reading and deleting learner memory.  Uses only the Python
-standard library — no new dependencies.
+Endpoints:
+  GET    /memory/{user_id}   — learner memory (includes Day 6 scheduling fields)
+  DELETE /memory/{user_id}   — delete all learner data
+  GET    /calls/{user_id}    — last 10 call records
+  POST   /schedule           — save preferred_time + sip_uri
 
 Start with:
     uv run python -m src.api.memory_server
@@ -20,27 +22,36 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from db.database import init_db
 from services.memory_service import forget_learner_memory, get_learner_memory
 
+try:
+    from api.call_server import (
+        handle_get_calls,
+        handle_post_schedule,
+        parse_calls_user_id,
+    )
+    from db.exercise_repository import get_topic_stats
+    from db.learner_repository import get_learner
+except ImportError:
+    from src.api.call_server import (  # type: ignore[no-redef]
+        handle_get_calls,
+        handle_post_schedule,
+        parse_calls_user_id,
+    )
+    from src.db.exercise_repository import get_topic_stats  # type: ignore[no-redef]
+    from src.db.learner_repository import get_learner  # type: ignore[no-redef]
+
 logger = logging.getLogger(__name__)
 
-# user_id validation limits
 _USER_ID_MAX_LEN = 200
-# Match /memory/<user_id>  (user_id must be non-empty)
 _PATH_RE = re.compile(r"^/memory/(.+)$")
 
-# CORS headers added to every response
 _CORS_HEADERS: list[tuple[str, str]] = [
     ("Access-Control-Allow-Origin", "*"),
-    ("Access-Control-Allow-Methods", "GET, DELETE, OPTIONS"),
+    ("Access-Control-Allow-Methods", "GET, DELETE, POST, OPTIONS"),
     ("Access-Control-Allow-Headers", "Content-Type"),
 ]
 
 
 def _parse_user_id(path: str) -> str | None:
-    """Extract and validate the user_id from the URL path.
-
-    Returns the user_id string if valid, or None if the path does not match
-    or the user_id fails validation.
-    """
     m = _PATH_RE.match(path)
     if not m:
         return None
@@ -51,11 +62,7 @@ def _parse_user_id(path: str) -> str | None:
 
 
 class MemoryHandler(BaseHTTPRequestHandler):
-    """Request handler for the Memory REST API."""
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
+    """Request handler for the Memory + Call REST API."""
 
     def _send_json(self, status: int, body: dict) -> None:
         payload = json.dumps(body).encode()
@@ -77,20 +84,18 @@ class MemoryHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         logger.info(fmt, *args)
 
-    # ------------------------------------------------------------------
-    # Route handlers
-    # ------------------------------------------------------------------
-
     def do_OPTIONS(self) -> None:
-        """Handle CORS preflight requests."""
-        user_id = _parse_user_id(self.path)
-        if user_id is None:
-            self._send_json(400, {"error": "invalid_user_id"})
-            return
         self._send_cors_preflight()
 
     def do_GET(self) -> None:
-        """GET /memory/{user_id} — return learner memory JSON."""
+        """GET /memory/{user_id} or GET /calls/{user_id}."""
+        # Route /calls/{user_id}
+        calls_user_id = parse_calls_user_id(self.path)
+        if calls_user_id is not None:
+            status, body = handle_get_calls(calls_user_id)
+            self._send_json(status, body)
+            return
+
         user_id = _parse_user_id(self.path)
         if user_id is None:
             self._send_json(400, {"error": "invalid_user_id"})
@@ -103,10 +108,38 @@ class MemoryHandler(BaseHTTPRequestHandler):
             self._send_json(500, {"error": "internal_error"})
             return
 
-        # get_learner_memory never raises; a non-dict result would be a bug
         if not isinstance(result, dict):
             self._send_json(500, {"error": "internal_error"})
             return
+
+        # Augment with Day 6 scheduling fields
+        try:
+            learner_row = get_learner(user_id)
+            if learner_row:
+                result["preferred_time"] = learner_row.get("preferred_time")
+                result["sip_uri"] = learner_row.get("sip_uri")
+                result["call_opt_out"] = learner_row.get("call_opt_out", 0)
+        except Exception:
+            pass  # non-fatal
+
+        # Augment with exercise_attempts for progress stats (task 14.4)
+        try:
+            topic_stats = get_topic_stats(user_id)
+            # Expand grouped stats back into individual attempt-like records
+            # so the frontend can compute total attempts, accuracy, and top topic.
+            attempts = []
+            for row in topic_stats:
+                topic = row["topic"]
+                total_in_topic = row["attempts"]
+                correct_in_topic = row["correct"]
+                incorrect_in_topic = total_in_topic - correct_in_topic
+                for _ in range(correct_in_topic):
+                    attempts.append({"topic": topic, "result": "correct"})
+                for _ in range(incorrect_in_topic):
+                    attempts.append({"topic": topic, "result": "incorrect"})
+            result["exercise_attempts"] = attempts
+        except Exception:
+            pass  # non-fatal
 
         self._send_json(200, result)
 
@@ -128,9 +161,92 @@ class MemoryHandler(BaseHTTPRequestHandler):
             self._send_json(500, {"error": "internal_error"})
             return
 
-        # forget_learner_memory returns {"success": True} or {"success": False}
         status = 200 if result.get("success") else 500
         self._send_json(status, result)
+
+    def do_POST(self) -> None:
+        """POST /schedule — save preferred_time + sip_uri.
+           POST /call/trigger — immediately dispatch an outbound call."""
+        if self.path in ("/call/trigger", "/call/trigger/"):
+            content_length = int(self.headers.get("Content-Length", 0))
+            body_bytes = self.rfile.read(content_length) if content_length > 0 else b""
+            try:
+                body = json.loads(body_bytes.decode("utf-8")) if body_bytes else {}
+            except (ValueError, UnicodeDecodeError):
+                self._send_json(400, {"error": "invalid_json"})
+                return
+
+            user_id = body.get("user_id", "").strip()
+            sip_uri = body.get("sip_uri", "").strip()
+
+            if not user_id or not sip_uri:
+                self._send_json(400, {"error": "user_id and sip_uri required"})
+                return
+
+            try:
+                import asyncio
+                import json as _json
+                from datetime import datetime as _dt
+                from livekit import api as _lkapi
+                from livekit.protocol.sip import CreateSIPParticipantRequest
+
+                trunk_id = os.getenv("LIVEKIT_SIP_TRUNK_ID", "")
+                if not trunk_id:
+                    self._send_json(500, {"error": "no_sip_trunk"})
+                    return
+
+                # Strip sip: prefix and @domain — trunk already knows the domain
+                sip_call_to = sip_uri.removeprefix("sip:").removeprefix("sips:")
+                if "@" in sip_call_to:
+                    sip_call_to = sip_call_to.split("@")[0]
+
+                room_name = "outbound-{}-{}".format(user_id, _dt.now().strftime("%Y%m%d-%H%M%S"))
+
+                async def _trigger():
+                    lk = _lkapi.LiveKitAPI(
+                        url=os.getenv("LIVEKIT_URL", ""),
+                        api_key=os.getenv("LIVEKIT_API_KEY", ""),
+                        api_secret=os.getenv("LIVEKIT_API_SECRET", ""),
+                    )
+                    try:
+                        # Step 1: Dispatch agent FIRST — it will wait for SIP participant
+                        await lk.agent_dispatch.create_dispatch(
+                            _lkapi.CreateAgentDispatchRequest(
+                                agent_name="my-agent",
+                                room=room_name,
+                                metadata=_json.dumps({"outbound": True, "user_id": user_id}),
+                            )
+                        )
+                        # Step 2: Ring phone — don't block (agent waits with 60s timeout)
+                        await lk.sip.create_sip_participant(
+                            CreateSIPParticipantRequest(
+                                sip_trunk_id=trunk_id,
+                                sip_call_to=sip_call_to,
+                                room_name=room_name,
+                                participant_identity="sip-{}".format(user_id),
+                                participant_name="Vidya AI",
+                                play_dialtone=True,
+                                wait_until_answered=False,  # non-blocking — HTTP returns fast
+                            )
+                        )
+                        return {"success": True, "room_name": room_name}
+                    finally:
+                        await lk.aclose()
+
+                result = asyncio.run(_trigger())
+                self._send_json(200, result)
+            except Exception:
+                logger.exception("POST /call/trigger failed")
+                self._send_json(500, {"error": "sip_dispatch_failed"})
+            return
+
+        if self.path != "/schedule":
+            self._send_json(404, {"error": "not_found"})
+            return
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length) if content_length > 0 else b""
+        status, response = handle_post_schedule(body)
+        self._send_json(status, response)
 
 
 def main() -> None:
@@ -139,13 +255,10 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
-
     init_db()
-
     port = int(os.environ.get("MEMORY_API_PORT", 8888))
     server = HTTPServer(("", port), MemoryHandler)
     logger.info("Memory API listening on http://localhost:%d", port)
-
     try:
         server.serve_forever()
     except KeyboardInterrupt:

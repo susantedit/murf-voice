@@ -14,6 +14,7 @@ import {
   CheckCircle,
   CircleNotch,
   Globe,
+  Lock,
   MathOperations,
   Microphone,
   Question,
@@ -69,7 +70,7 @@ const STATE_CONFIG: Record<
   listening: {
     IconComponent: Microphone,
     label: 'LISTENING',
-    sublabel: 'Speak now — I\'m ready for you',
+    sublabel: "Speak now — I'm ready for you",
     color: 'text-cyan-400',
     dot: 'bg-cyan-400 motion-safe:animate-ping',
   },
@@ -110,9 +111,12 @@ function VidyaOrb({ state }: { state: OrbState }) {
       <div
         className={cn('absolute rounded-full blur-[90px] transition-all duration-1000', {
           'bg-primary/8 h-72 w-72': state === 'idle' || isConnecting,
-          'h-72 w-72 bg-cyan-400/12 [animation-duration:0.8s] motion-safe:animate-pulse': isListening,
-          'h-72 w-72 bg-violet-400/15 [animation-duration:1.2s] motion-safe:animate-pulse': isThinking,
-          'h-72 w-72 bg-emerald-400/15 [animation-duration:0.6s] motion-safe:animate-pulse': isSpeaking,
+          'h-72 w-72 bg-cyan-400/12 [animation-duration:0.8s] motion-safe:animate-pulse':
+            isListening,
+          'h-72 w-72 bg-violet-400/15 [animation-duration:1.2s] motion-safe:animate-pulse':
+            isThinking,
+          'h-72 w-72 bg-emerald-400/15 [animation-duration:0.6s] motion-safe:animate-pulse':
+            isSpeaking,
         })}
       />
       {/* Outer ring */}
@@ -131,7 +135,8 @@ function VidyaOrb({ state }: { state: OrbState }) {
       {/* Mid ring */}
       <span
         className={cn('absolute h-44 w-44 rounded-full border transition-all duration-700', {
-          'border-primary/10 [animation-duration:3s] motion-safe:animate-pulse': state === 'idle' || isConnecting,
+          'border-primary/10 [animation-duration:3s] motion-safe:animate-pulse':
+            state === 'idle' || isConnecting,
           'border-cyan-400/20 [animation-duration:0.8s] motion-safe:animate-pulse': isListening,
           'border-violet-400/25 [animation-duration:3s] motion-safe:animate-spin': isThinking,
           'border-emerald-400/20 [animation-duration:0.6s] motion-safe:animate-pulse': isSpeaking,
@@ -149,7 +154,8 @@ function VidyaOrb({ state }: { state: OrbState }) {
           }
         )}
         style={{
-          background: 'radial-gradient(circle at 35% 35%, oklch(0.70 0.22 264), oklch(0.42 0.25 280))',
+          background:
+            'radial-gradient(circle at 35% 35%, oklch(0.70 0.22 264), oklch(0.42 0.25 280))',
           border: '1px solid oklch(1 0 0 / 15%)',
         }}
       >
@@ -163,19 +169,123 @@ function VidyaOrb({ state }: { state: OrbState }) {
         />
         {/* Book SVG */}
         <svg width="52" height="52" viewBox="0 0 48 48" fill="none" className="relative z-10">
-          <path d="M24 11C24 11 15 9 7 13V38C15 34 24 36 24 36V11Z" fill="white" fillOpacity="0.25" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
-          <path d="M24 11C24 11 33 9 41 13V38C33 34 24 36 24 36V11Z" fill="white" fillOpacity="0.12" stroke="white" strokeWidth="1.8" strokeLinejoin="round" />
-          <line x1="11" y1="18" x2="21" y2="16.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.7" />
-          <line x1="11" y1="23" x2="21" y2="21.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.7" />
-          <line x1="11" y1="28" x2="21" y2="26.5" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.7" />
-          <line x1="27" y1="16.5" x2="37" y2="18" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.5" />
-          <line x1="27" y1="21.5" x2="37" y2="23" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.5" />
-          <line x1="27" y1="26.5" x2="37" y2="28" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.5" />
+          <path
+            d="M24 11C24 11 15 9 7 13V38C15 34 24 36 24 36V11Z"
+            fill="white"
+            fillOpacity="0.25"
+            stroke="white"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M24 11C24 11 33 9 41 13V38C33 34 24 36 24 36V11Z"
+            fill="white"
+            fillOpacity="0.12"
+            stroke="white"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          <line
+            x1="11"
+            y1="18"
+            x2="21"
+            y2="16.5"
+            stroke="white"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeOpacity="0.7"
+          />
+          <line
+            x1="11"
+            y1="23"
+            x2="21"
+            y2="21.5"
+            stroke="white"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeOpacity="0.7"
+          />
+          <line
+            x1="11"
+            y1="28"
+            x2="21"
+            y2="26.5"
+            stroke="white"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeOpacity="0.7"
+          />
+          <line
+            x1="27"
+            y1="16.5"
+            x2="37"
+            y2="18"
+            stroke="white"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeOpacity="0.5"
+          />
+          <line
+            x1="27"
+            y1="21.5"
+            x2="37"
+            y2="23"
+            stroke="white"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeOpacity="0.5"
+          />
+          <line
+            x1="27"
+            y1="26.5"
+            x2="37"
+            y2="28"
+            stroke="white"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeOpacity="0.5"
+          />
           <circle cx="39" cy="10" r="2.5" fill="white" fillOpacity="0.6" />
-          <line x1="39" y1="5" x2="39" y2="8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.5" />
-          <line x1="39" y1="12" x2="39" y2="15" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.5" />
-          <line x1="34" y1="10" x2="37" y2="10" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.5" />
-          <line x1="41" y1="10" x2="44" y2="10" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.5" />
+          <line
+            x1="39"
+            y1="5"
+            x2="39"
+            y2="8"
+            stroke="white"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeOpacity="0.5"
+          />
+          <line
+            x1="39"
+            y1="12"
+            x2="39"
+            y2="15"
+            stroke="white"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeOpacity="0.5"
+          />
+          <line
+            x1="34"
+            y1="10"
+            x2="37"
+            y2="10"
+            stroke="white"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeOpacity="0.5"
+          />
+          <line
+            x1="41"
+            y1="10"
+            x2="44"
+            y2="10"
+            stroke="white"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeOpacity="0.5"
+          />
         </svg>
       </div>
 
@@ -206,7 +316,12 @@ function StateBadge({ orbState }: { orbState: OrbState }) {
   const IconComp = config.IconComponent;
 
   return (
-    <div className="mt-8 flex flex-col items-center gap-2" role="status" aria-live="polite" aria-label={config.sublabel}>
+    <div
+      className="mt-8 flex flex-col items-center gap-2"
+      role="status"
+      aria-live="polite"
+      aria-label={config.sublabel}
+    >
       <span
         className={cn(
           'inline-flex items-center gap-3 rounded-full border px-6 py-2.5 text-sm font-bold tracking-widest uppercase backdrop-blur-sm',
@@ -219,10 +334,38 @@ function StateBadge({ orbState }: { orbState: OrbState }) {
           }
         )}
       >
-        {orbState === 'listening' && <Microphone size={16} weight="bold" className="motion-safe:animate-pulse" aria-hidden="true" />}
-        {orbState === 'thinking' && <Brain size={16} weight="bold" className="[animation-duration:1.5s] motion-safe:animate-spin" aria-hidden="true" />}
-        {orbState === 'speaking' && <Waveform size={16} weight="bold" className="[animation-duration:0.6s] motion-safe:animate-pulse" aria-hidden="true" />}
-        {orbState === 'connecting' && <CircleNotch size={16} weight="bold" className="motion-safe:animate-spin" aria-hidden="true" />}
+        {orbState === 'listening' && (
+          <Microphone
+            size={16}
+            weight="bold"
+            className="motion-safe:animate-pulse"
+            aria-hidden="true"
+          />
+        )}
+        {orbState === 'thinking' && (
+          <Brain
+            size={16}
+            weight="bold"
+            className="[animation-duration:1.5s] motion-safe:animate-spin"
+            aria-hidden="true"
+          />
+        )}
+        {orbState === 'speaking' && (
+          <Waveform
+            size={16}
+            weight="bold"
+            className="[animation-duration:0.6s] motion-safe:animate-pulse"
+            aria-hidden="true"
+          />
+        )}
+        {orbState === 'connecting' && (
+          <CircleNotch
+            size={16}
+            weight="bold"
+            className="motion-safe:animate-spin"
+            aria-hidden="true"
+          />
+        )}
         {orbState === 'idle' && <CheckCircle size={16} weight="bold" aria-hidden="true" />}
         <span>
           {orbState === 'idle' && 'VIDYA IS READY'}
@@ -248,7 +391,9 @@ interface InspirationChipProps {
 function InspirationChip({ icon, text }: InspirationChipProps) {
   return (
     <span className="text-muted-foreground inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-xs font-medium">
-      <span aria-hidden="true" className="shrink-0">{icon}</span>
+      <span aria-hidden="true" className="shrink-0">
+        {icon}
+      </span>
       {text}
     </span>
   );
@@ -260,7 +405,8 @@ function LearningContextBar({ userId }: { userId: string }) {
   const { memory, loading } = useLearnerMemory(userId);
   if (loading || !memory?.found) return null;
 
-  const lastTopic = memory.topics && memory.topics.length > 0 ? memory.topics[memory.topics.length - 1] : undefined;
+  const lastTopic =
+    memory.topics && memory.topics.length > 0 ? memory.topics[memory.topics.length - 1] : undefined;
 
   return (
     <div className="mx-auto mt-4 flex flex-wrap items-center justify-center gap-2 px-4">
@@ -303,7 +449,12 @@ function CustomTranscript({ messages, agentState }: CustomTranscriptProps) {
   if (messages.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-        <ChatTeardrop size={32} weight="regular" className="text-muted-foreground/30" aria-hidden="true" />
+        <ChatTeardrop
+          size={32}
+          weight="regular"
+          className="text-muted-foreground/30"
+          aria-hidden="true"
+        />
         <p className="text-muted-foreground text-xs">Your conversation will appear here...</p>
         <p className="text-muted-foreground/50 text-[10px]">Hindi → देवनागरी · English → Latin</p>
       </div>
@@ -315,30 +466,41 @@ function CustomTranscript({ messages, agentState }: CustomTranscriptProps) {
       {messages.map((msg) => {
         const isUser = msg.from?.isLocal === true;
         const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US';
-        const time = new Date(msg.timestamp).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+        const time = new Date(msg.timestamp).toLocaleTimeString(locale, {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
 
         return (
-          <div key={msg.id} className={cn('flex items-end gap-2', isUser ? 'flex-row-reverse' : 'flex-row')}>
+          <div
+            key={msg.id}
+            className={cn('flex items-end gap-2', isUser ? 'flex-row-reverse' : 'flex-row')}
+          >
             {/* Avatar */}
             <div
               className={cn(
                 'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
                 isUser
-                  ? 'bg-primary/20 text-primary border border-primary/30'
-                  : 'bg-white/8 text-muted-foreground border border-white/10'
+                  ? 'bg-primary/20 text-primary border-primary/30 border'
+                  : 'text-muted-foreground border border-white/10 bg-white/8'
               )}
               aria-hidden="true"
             >
               {isUser ? 'U' : <BookOpen size={10} weight="bold" />}
             </div>
             {/* Bubble */}
-            <div className={cn('flex max-w-[80%] flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
+            <div
+              className={cn(
+                'flex max-w-[80%] flex-col gap-1',
+                isUser ? 'items-end' : 'items-start'
+              )}
+            >
               <div
                 className={cn(
                   'rounded-2xl px-3.5 py-2 text-sm leading-relaxed',
                   isUser
-                    ? 'bg-primary/15 border border-primary/20 text-foreground rounded-br-sm'
-                    : 'bg-white/5 border border-white/8 text-foreground rounded-bl-sm'
+                    ? 'bg-primary/15 border-primary/20 text-foreground rounded-br-sm border'
+                    : 'text-foreground rounded-bl-sm border border-white/8 bg-white/5'
                 )}
               >
                 {msg.message}
@@ -351,14 +513,17 @@ function CustomTranscript({ messages, agentState }: CustomTranscriptProps) {
       {/* Thinking indicator */}
       {agentState === 'thinking' && (
         <div className="flex items-end gap-2">
-          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/8 text-muted-foreground" aria-hidden="true">
+          <div
+            className="text-muted-foreground flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/8"
+            aria-hidden="true"
+          >
             <BookOpen size={10} weight="bold" />
           </div>
           <div className="rounded-2xl rounded-bl-sm border border-white/8 bg-white/5 px-3.5 py-2">
             <span className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:0ms]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:150ms]" />
-              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:300ms]" />
+              <span className="bg-muted-foreground/60 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:0ms]" />
+              <span className="bg-muted-foreground/60 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:150ms]" />
+              <span className="bg-muted-foreground/60 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:300ms]" />
             </span>
           </div>
         </div>
@@ -372,10 +537,25 @@ function CustomTranscript({ messages, agentState }: CustomTranscriptProps) {
 
 function FeaturePills() {
   const pills = [
-    { icon: '🧠', label: 'Memory Active', desc: 'Learns your preferences' },
-    { icon: '📚', label: 'Personalised', desc: 'Adapted to your level' },
-    { icon: '🌐', label: 'Multilingual', desc: 'Hindi & English' },
-    { icon: '🔒', label: 'Privacy First', desc: 'Your data, your choice' },
+    {
+      Icon: Brain,
+      label: 'Memory Active',
+      desc: 'Learns your preferences',
+      className: 'text-primary',
+    },
+    {
+      Icon: BookOpen,
+      label: 'Personalised',
+      desc: 'Adapted to your level',
+      className: 'text-primary',
+    },
+    { Icon: Globe, label: 'Multilingual', desc: 'Hindi & English', className: 'text-primary' },
+    {
+      Icon: Lock,
+      label: 'Privacy First',
+      desc: 'Your data, your choice',
+      className: 'text-primary',
+    },
   ];
 
   return (
@@ -385,7 +565,7 @@ function FeaturePills() {
           key={p.label}
           className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2.5"
         >
-          <span className="text-base" aria-hidden="true">{p.icon}</span>
+          <p.Icon size={16} weight="duotone" className={p.className} aria-hidden="true" />
           <div className="min-w-0">
             <p className="text-foreground truncate text-[11px] font-semibold">{p.label}</p>
             <p className="text-muted-foreground truncate text-[10px]">{p.desc}</p>
@@ -409,8 +589,15 @@ function ExerciseErrorCard({ onRetry }: { onRetry: () => void }) {
       role="alert"
     >
       <div className="mb-2 flex items-center gap-2">
-        <Warning size={16} weight="duotone" className="shrink-0 text-amber-400" aria-hidden="true" />
-        <span className="text-amber-400 text-sm font-semibold">Unable to fetch practice question</span>
+        <Warning
+          size={16}
+          weight="duotone"
+          className="shrink-0 text-amber-400"
+          aria-hidden="true"
+        />
+        <span className="text-sm font-semibold text-amber-400">
+          Unable to fetch practice question
+        </span>
       </div>
       <p className="text-muted-foreground mb-3 text-xs">Checking connection...</p>
       <button
@@ -461,8 +648,12 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
 
   // Tool events → exercise / feedback / error state
   const toolEvents = useToolEvents();
-  const [activeExercise, setActiveExercise] = useState<Omit<ExerciseCardProps, 'className'> | null>(null);
-  const [activeFeedback, setActiveFeedback] = useState<Omit<FeedbackCardProps, 'className'> | null>(null);
+  const [activeExercise, setActiveExercise] = useState<Omit<ExerciseCardProps, 'className'> | null>(
+    null
+  );
+  const [activeFeedback, setActiveFeedback] = useState<Omit<FeedbackCardProps, 'className'> | null>(
+    null
+  );
   const [exerciseError, setExerciseError] = useState(false);
   const prevToolEventCount = useRef(0);
 
@@ -518,7 +709,10 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
 
   return (
     <section
-      className={cn('bg-background fixed inset-0 z-10 flex h-full w-full flex-col overflow-hidden', className)}
+      className={cn(
+        'bg-background fixed inset-0 z-10 flex h-full w-full flex-col overflow-hidden',
+        className
+      )}
       aria-label="Vidya Learning Room"
     >
       {/* Ambient background */}
@@ -531,10 +725,18 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
       {/* ── Top navbar ── */}
       <div className="bg-background/80 relative z-20 flex shrink-0 items-center justify-between border-b border-white/5 px-4 py-2.5 backdrop-blur-sm md:px-8">
         <div className="flex items-center gap-2.5">
-          <Image src="/vidya-logo.png" alt="Vidya" width={32} height={32} className="shrink-0 rounded-lg" />
+          <Image
+            src="/vidya-logo.png"
+            alt="Vidya"
+            width={32}
+            height={32}
+            className="shrink-0 rounded-lg"
+          />
           <div className="flex flex-col leading-tight">
             <span className="text-foreground text-sm font-bold tracking-tight">VIDYA</span>
-            <span className="text-muted-foreground text-[9px] tracking-widest uppercase">Learning Room</span>
+            <span className="text-muted-foreground text-[9px] tracking-widest uppercase">
+              Learning Room
+            </span>
           </div>
         </div>
 
@@ -552,7 +754,6 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
 
       {/* ── Body: 70/30 split on desktop ── */}
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
-
         {/* ── Left / Center column (70%) ── */}
         <div className="flex flex-1 flex-col overflow-y-auto">
           {/* Orb + state badge section */}
@@ -565,7 +766,7 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
           <LearningContextBar userId={userId} />
 
           {/* ── Exercise Card / Feedback Card / Error Card ── */}
-          <div className="mx-auto w-full max-w-sm px-4 pb-2 pt-4">
+          <div className="mx-auto w-full max-w-sm px-4 pt-4 pb-2">
             <AnimatePresence mode="wait">
               {activeExercise && <ExerciseCard key="exercise" {...activeExercise} />}
               {activeFeedback && <FeedbackCard key="feedback" {...activeFeedback} />}
@@ -582,12 +783,24 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
                 Need inspiration? Try asking:
               </p>
               <div className="flex flex-wrap justify-center gap-2">
-                <InspirationChip icon={<MathOperations size={12} weight="bold" />} text="Explain Algebra" />
+                <InspirationChip
+                  icon={<MathOperations size={12} weight="bold" />}
+                  text="Explain Algebra"
+                />
                 <InspirationChip icon={<Atom size={12} weight="bold" />} text="Explain Biology" />
-                <InspirationChip icon={<MathOperations size={12} weight="regular" />} text="Practice Fractions" />
+                <InspirationChip
+                  icon={<MathOperations size={12} weight="regular" />}
+                  text="Practice Fractions"
+                />
                 <InspirationChip icon={<Question size={12} weight="bold" />} text="Quiz Me" />
-                <InspirationChip icon={<ArrowCounterClockwise size={12} weight="bold" />} text="Revise Yesterday's Topic" />
-                <InspirationChip icon={<BookOpen size={12} weight="bold" />} text="हिंदी में समझाओ" />
+                <InspirationChip
+                  icon={<ArrowCounterClockwise size={12} weight="bold" />}
+                  text="Revise Yesterday's Topic"
+                />
+                <InspirationChip
+                  icon={<BookOpen size={12} weight="bold" />}
+                  text="हिंदी में समझाओ"
+                />
               </div>
             </div>
           )}
@@ -639,12 +852,19 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
         </div>
 
         {/* ── Right panel (30%, ~380px) — always visible on desktop ── */}
-        <aside className="hidden w-[380px] shrink-0 flex-col border-l border-white/8 md:flex overflow-hidden">
+        <aside className="hidden w-[380px] shrink-0 flex-col overflow-hidden border-l border-white/8 md:flex">
           <div className="flex flex-1 flex-col overflow-y-auto">
             {/* Transcript heading */}
             <div className="flex shrink-0 items-center gap-2 border-b border-white/5 px-4 py-3">
-              <ChatTeardrop size={14} weight="regular" className="text-primary" aria-hidden="true" />
-              <h3 className="text-foreground text-xs font-bold tracking-widest uppercase">Live Transcript</h3>
+              <ChatTeardrop
+                size={14}
+                weight="regular"
+                className="text-primary"
+                aria-hidden="true"
+              />
+              <h3 className="text-foreground text-xs font-bold tracking-widest uppercase">
+                Live Transcript
+              </h3>
               {messages.length > 0 && (
                 <span className="bg-primary/10 text-primary ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold">
                   {messages.length}
@@ -685,7 +905,13 @@ export function VidyaLearningRoom({ onDisconnect, className }: VidyaLearningRoom
         <div className="relative mx-auto max-w-md">
           <AgentControlBar
             variant="livekit"
-            controls={{ leave: true, microphone: true, chat: true, camera: false, screenShare: false }}
+            controls={{
+              leave: true,
+              microphone: true,
+              chat: true,
+              camera: false,
+              screenShare: false,
+            }}
             isChatOpen={chatInputOpen}
             onIsChatOpenChange={setChatInputOpen}
             isConnected={session.isConnected}

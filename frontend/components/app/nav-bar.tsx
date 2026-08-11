@@ -5,9 +5,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
-import { List, Microphone, X } from '@phosphor-icons/react';
+import { List, Microphone, Phone, X } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/shadcn/utils';
+import { getUserId } from '@/lib/user-identity';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -17,12 +18,98 @@ interface NavLink {
 }
 
 const NAV_LINKS: NavLink[] = [
-  { label: 'Home', href: '/' },
-  { label: 'How it works', href: '/#how-it-works' },
+  { label: 'Home', href: '/#home' },
+  { label: 'Features', href: '/#features' },
+  { label: 'How it Works', href: '/#how-it-works' },
   { label: 'Privacy', href: '/#privacy' },
-  { label: 'Learning', href: '/#learning' },
-  { label: 'Memory', href: '/memory' },
+  { label: 'About', href: '/#about' },
 ];
+
+const API_BASE = process.env.NEXT_PUBLIC_MEMORY_API_URL ?? 'http://localhost:8888';
+
+// ── Call Now button ────────────────────────────────────────────────────────
+
+function CallNowButton({ className }: { className?: string }) {
+  const [status, setStatus] = useState<'idle' | 'calling' | 'success' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleCall = async () => {
+    if (status === 'calling') return;
+    const userId = getUserId();
+    if (!userId || userId === 'server-side') {
+      setStatus('error');
+      setErrorMsg('No user ID');
+      setTimeout(() => setStatus('idle'), 3000);
+      return;
+    }
+
+    setStatus('calling');
+    setErrorMsg('');
+    try {
+      // Fetch saved SIP URI
+      const memRes = await fetch(`${API_BASE}/memory/${encodeURIComponent(userId)}`);
+      const mem = await memRes.json() as { sip_uri?: string };
+      const sipUri = mem.sip_uri;
+      if (!sipUri) {
+        alert('No SIP URI saved.\nScroll down to "Daily Practice Call" and enter your Linphone SIP address first.');
+        setStatus('idle');
+        return;
+      }
+
+      // POST to trigger — this blocks until Linphone is answered (up to 60s)
+      const res = await fetch(`${API_BASE}/call/trigger`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, sip_uri: sipUri }),
+      });
+      const data = await res.json() as { success?: boolean; error?: string };
+      if (data.success) {
+        setStatus('success');
+        setTimeout(() => setStatus('idle'), 5000);
+      } else {
+        setErrorMsg(data.error ?? 'call failed');
+        setStatus('error');
+        setTimeout(() => setStatus('idle'), 4000);
+      }
+    } catch {
+      setErrorMsg('network error');
+      setStatus('error');
+      setTimeout(() => setStatus('idle'), 3000);
+    }
+  };
+
+  const label =
+    status === 'calling' ? 'Ringing...' :
+    status === 'success' ? 'Connected!' :
+    status === 'error'   ? `Error: ${errorMsg}` :
+    'Call Now';
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={handleCall}
+      disabled={status === 'calling'}
+      className={cn(
+        'rounded-full font-mono text-xs font-bold tracking-widest uppercase transition-all duration-200',
+        status === 'calling' && 'border-amber-400/40 text-amber-400 opacity-90 cursor-wait',
+        status === 'success' && 'border-emerald-500/40 bg-emerald-500/15 text-emerald-400',
+        status === 'error'   && 'border-red-500/40 text-red-400',
+        className
+      )}
+      aria-label="Trigger an outbound call to your Linphone now"
+    >
+      {status === 'calling' ? (
+        <span className="inline-block h-3 w-3 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin" aria-hidden="true" />
+      ) : status === 'success' ? (
+        <Phone size={13} weight="fill" aria-hidden="true" />
+      ) : (
+        <Phone size={13} weight="bold" aria-hidden="true" />
+      )}
+      {label}
+    </Button>
+  );
+}
 
 // ── NavBar ─────────────────────────────────────────────────────────────────
 
@@ -36,7 +123,8 @@ export function NavBar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isActive = (href: string) => pathname === href;
+  // Strip hash fragment before comparing to pathname (all nav links are scroll anchors)
+  const isActive = (href: string) => pathname === href.split('#')[0] || pathname === href;
 
   return (
     <header className="fixed top-0 left-0 z-50 w-full" role="banner">
@@ -92,6 +180,7 @@ export function NavBar() {
 
           {/* ── Desktop CTA ── */}
           <div className="hidden items-center gap-3 md:flex">
+            <CallNowButton />
             <Link href="/">
               <Button
                 size="sm"
@@ -155,7 +244,8 @@ export function NavBar() {
                 </li>
               ))}
 
-              <li className="mt-3">
+              <li className="mt-3 flex flex-col gap-2">
+                <CallNowButton className="w-full" />
                 <Link href="/" onClick={() => setMobileOpen(false)}>
                   <Button
                     size="sm"
