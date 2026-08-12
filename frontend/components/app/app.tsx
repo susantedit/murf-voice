@@ -98,7 +98,7 @@ export function App({ appConfig }: AppProps) {
   return (
     <AgentSessionProvider session={session}>
       <AppSetup />
-      <main className="grid h-svh grid-cols-1 place-content-center">
+      <main className="flex min-h-screen w-full flex-1 flex-col">
         <ViewController
           appConfig={appConfig}
           onStartCall={handleStartCall}

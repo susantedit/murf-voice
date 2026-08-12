@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useAgent, useSessionContext, useSessionMessages } from '@livekit/components-react';
 import {
@@ -14,6 +15,8 @@ import {
   Warning,
   Waveform,
 } from '@phosphor-icons/react';
+import { EscalationCard } from '@/components/app/escalation-card';
+import type { EscalationCardProps } from '@/components/app/escalation-card';
 import { useToolEvents } from '@/hooks/useToolEvents';
 import type { ToolEvent } from '@/hooks/useToolEvents';
 import { cn } from '@/lib/shadcn/utils';
@@ -154,6 +157,9 @@ export function AIActivityPanel({ className }: { className?: string }) {
 
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [techOpen, setTechOpen] = useState(false);
+  const [escalationCards, setEscalationCards] = useState<
+    Array<EscalationCardProps & { id: string }>
+  >([]);
 
   const prevAgentState = useRef<string | undefined>(undefined);
   const prevMessageCount = useRef<number>(0);
@@ -222,8 +228,49 @@ export function AIActivityPanel({ className }: { className?: string }) {
     prevToolEventCount.current = currentCount;
 
     // Convert each new tool event to an activity item and prepend (newest first)
-    const newItems = newEvents.map(toolEventToItem);
-    setItems((prev) => [...newItems.reverse(), ...prev]);
+    const newItems: ActivityItem[] = [];
+    for (const event of newEvents) {
+      if (event.type === 'escalation_created') {
+        setEscalationCards((prev) => [
+          ...prev,
+          {
+            id: makeId(),
+            status: 'created',
+            referenceId: event.reference_id,
+            reason: event.reason,
+            summary: event.summary,
+            urgency: event.urgency,
+            language: event.language,
+          },
+        ]);
+        continue;
+      }
+      if (event.type === 'escalation_failed') {
+        setEscalationCards((prev) => [
+          ...prev,
+          {
+            id: makeId(),
+            status: 'failed',
+            error: event.error,
+          },
+        ]);
+        continue;
+      }
+      if (event.type === 'escalation_consent_requested') {
+        setEscalationCards((prev) => [
+          ...prev,
+          {
+            id: makeId(),
+            status: 'preparing',
+          },
+        ]);
+        continue;
+      }
+      newItems.push(toolEventToItem(event));
+    }
+    if (newItems.length > 0) {
+      setItems((prev) => [...newItems.reverse(), ...prev]);
+    }
   }, [toolEvents]);
 
   return (
@@ -260,33 +307,45 @@ export function AIActivityPanel({ className }: { className?: string }) {
           </p>
         </div>
       ) : (
-        <ul
-          className="flex max-h-52 flex-col gap-1.5 overflow-y-auto"
-          aria-live="polite"
-          aria-label="Activity items"
-        >
-          {items.map((item) => (
-            <li
-              key={item.id}
-              className={cn(
-                'border-border/40 bg-background/40 flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5',
-                item.kind === 'error' && 'border-red-500/20 bg-red-500/5'
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <KindIcon kind={item.kind} />
-                <span
-                  className={cn('text-foreground text-xs', item.kind === 'error' && 'text-red-400')}
-                >
-                  {item.label}
+        <>
+          {escalationCards.length > 0 && (
+            <AnimatePresence>
+              {escalationCards.map((card) => (
+                <EscalationCard key={card.id} {...card} className="mb-2" />
+              ))}
+            </AnimatePresence>
+          )}
+          <ul
+            className="flex max-h-52 flex-col gap-1.5 overflow-y-auto"
+            aria-live="polite"
+            aria-label="Activity items"
+          >
+            {items.map((item) => (
+              <li
+                key={item.id}
+                className={cn(
+                  'border-border/40 bg-background/40 flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5',
+                  item.kind === 'error' && 'border-red-500/20 bg-red-500/5'
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <KindIcon kind={item.kind} />
+                  <span
+                    className={cn(
+                      'text-foreground text-xs',
+                      item.kind === 'error' && 'text-red-400'
+                    )}
+                  >
+                    {item.label}
+                  </span>
                 </span>
-              </span>
-              <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
-                {formatTime(item.timestamp)}
-              </span>
-            </li>
-          ))}
-        </ul>
+                <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
+                  {formatTime(item.timestamp)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {/* Technical Details — collapsed by default */}

@@ -4,7 +4,16 @@ import { useEffect, useState } from 'react';
 import { useRoomContext } from '@livekit/components-react';
 
 export interface ToolEvent {
-  type: 'tool_start' | 'exercise_ready' | 'answer_scored' | 'tool_error';
+  type:
+    | 'tool_start'
+    | 'exercise_ready'
+    | 'answer_scored'
+    | 'tool_error'
+    | 'escalation_detected'
+    | 'escalation_consent_requested'
+    | 'escalation_created'
+    | 'escalation_denied'
+    | 'escalation_failed';
   tool?: string;
   label?: string;
   topic?: string;
@@ -15,6 +24,12 @@ export interface ToolEvent {
   result?: string;
   score_label?: string;
   data_source?: string;
+  reference_id?: string;
+  reason?: string;
+  summary?: string;
+  urgency?: string;
+  language?: string;
+  status?: string;
   error?: string;
   receivedAt: Date;
 }
@@ -34,7 +49,12 @@ export function useToolEvents(): ToolEvent[] {
     if (!room) return;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handler = (payload: Uint8Array, _participant: unknown, _kind: unknown, topic?: string) => {
+    const handler = (
+      payload: Uint8Array,
+      _participant: unknown,
+      _kind: unknown,
+      topic?: string
+    ) => {
       if (topic !== 'vidya-tools') return;
       try {
         const raw = JSON.parse(new TextDecoder().decode(payload)) as Omit<ToolEvent, 'receivedAt'>;

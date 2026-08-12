@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'motion/react';
 import { List, Microphone, Phone, X } from '@phosphor-icons/react';
+import { VidyaLogo } from '@/components/app/vidya-logo';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/shadcn/utils';
 import { getUserId } from '@/lib/user-identity';
@@ -19,10 +19,10 @@ interface NavLink {
 
 const NAV_LINKS: NavLink[] = [
   { label: 'Home', href: '/#home' },
-  { label: 'Features', href: '/#features' },
-  { label: 'How it Works', href: '/#how-it-works' },
+  { label: 'How It Works', href: '/#how-it-works' },
+  { label: 'Practice', href: '/#learning' },
+  { label: 'Teacher Support', href: '/#schedule' },
   { label: 'Privacy', href: '/#privacy' },
-  { label: 'About', href: '/#about' },
 ];
 
 const API_BASE = process.env.NEXT_PUBLIC_MEMORY_API_URL ?? 'http://localhost:8888';
@@ -48,10 +48,12 @@ function CallNowButton({ className }: { className?: string }) {
     try {
       // Fetch saved SIP URI
       const memRes = await fetch(`${API_BASE}/memory/${encodeURIComponent(userId)}`);
-      const mem = await memRes.json() as { sip_uri?: string };
+      const mem = (await memRes.json()) as { sip_uri?: string };
       const sipUri = mem.sip_uri;
       if (!sipUri) {
-        alert('No SIP URI saved.\nScroll down to "Daily Practice Call" and enter your Linphone SIP address first.');
+        alert(
+          'No SIP URI saved.\nScroll down to "Daily Practice Call" and enter your Linphone SIP address first.'
+        );
         setStatus('idle');
         return;
       }
@@ -62,7 +64,7 @@ function CallNowButton({ className }: { className?: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, sip_uri: sipUri }),
       });
-      const data = await res.json() as { success?: boolean; error?: string };
+      const data = (await res.json()) as { success?: boolean; error?: string };
       if (data.success) {
         setStatus('success');
         setTimeout(() => setStatus('idle'), 5000);
@@ -79,10 +81,13 @@ function CallNowButton({ className }: { className?: string }) {
   };
 
   const label =
-    status === 'calling' ? 'Ringing...' :
-    status === 'success' ? 'Connected!' :
-    status === 'error'   ? `Error: ${errorMsg}` :
-    'Call Now';
+    status === 'calling'
+      ? 'Ringing...'
+      : status === 'success'
+        ? 'Connected!'
+        : status === 'error'
+          ? `Error: ${errorMsg}`
+          : 'Call Now';
 
   return (
     <Button
@@ -92,15 +97,18 @@ function CallNowButton({ className }: { className?: string }) {
       disabled={status === 'calling'}
       className={cn(
         'rounded-full font-mono text-xs font-bold tracking-widest uppercase transition-all duration-200',
-        status === 'calling' && 'border-amber-400/40 text-amber-400 opacity-90 cursor-wait',
+        status === 'calling' && 'cursor-wait border-amber-400/40 text-amber-400 opacity-90',
         status === 'success' && 'border-emerald-500/40 bg-emerald-500/15 text-emerald-400',
-        status === 'error'   && 'border-red-500/40 text-red-400',
+        status === 'error' && 'border-red-500/40 text-red-400',
         className
       )}
       aria-label="Trigger an outbound call to your Linphone now"
     >
       {status === 'calling' ? (
-        <span className="inline-block h-3 w-3 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin" aria-hidden="true" />
+        <span
+          className="inline-block h-3 w-3 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin"
+          aria-hidden="true"
+        />
       ) : status === 'success' ? (
         <Phone size={13} weight="fill" aria-hidden="true" />
       ) : (
@@ -142,21 +150,11 @@ export function NavBar() {
 
         <div className="mx-auto flex h-[60px] max-w-6xl items-center justify-between px-4 md:px-8">
           {/* ── Brand ── */}
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Vidya — home">
-            <Image
-              src="/vidya-logo.png"
-              alt="Vidya"
-              width={32}
-              height={32}
-              className="shrink-0 rounded-lg"
-              priority
-            />
-            <div className="flex flex-col leading-none">
-              <span className="text-foreground text-sm font-bold tracking-tight">VIDYA</span>
-              <span className="text-muted-foreground text-[10px] tracking-wider uppercase">
-                AI Learning Assistant
-              </span>
-            </div>
+          <Link href="/" className="flex items-center gap-2" aria-label="Vidya — home">
+            <VidyaLogo size={28} className="text-primary" />
+            <span className="text-muted-foreground hidden text-[10px] tracking-widest uppercase sm:inline">
+              AI Learning Companion
+            </span>
           </Link>
 
           {/* ── Desktop nav links ── */}

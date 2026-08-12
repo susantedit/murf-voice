@@ -6,7 +6,7 @@ export interface CallRecord {
   duration_seconds?: number;
   topic?: string;
   performance?: string;
-  status: "answered" | "missed" | "failed";
+  status: 'answered' | 'missed' | 'failed';
 }
 
 export interface ScheduleConfig {
@@ -16,13 +16,6 @@ export interface ScheduleConfig {
 }
 
 export interface CallStatusEvent {
-  type: "call_status";
-  status:
-    | "READY"
-    | "CONNECTING"
-    | "CALLING"
-    | "LISTENING"
-    | "THINKING"
-    | "SPEAKING"
-    | "CALL ENDED";
+  type: 'call_status';
+  status: 'READY' | 'CONNECTING' | 'CALLING' | 'LISTENING' | 'THINKING' | 'SPEAKING' | 'CALL ENDED';
 }

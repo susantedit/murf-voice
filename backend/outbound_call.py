@@ -21,14 +21,14 @@ from dotenv import load_dotenv
 
 load_dotenv(".env.local", override=False)
 
-LIVEKIT_URL    = os.getenv("LIVEKIT_URL", "")
-LIVEKIT_KEY    = os.getenv("LIVEKIT_API_KEY", "")
+LIVEKIT_URL = os.getenv("LIVEKIT_URL", "")
+LIVEKIT_KEY = os.getenv("LIVEKIT_API_KEY", "")
 LIVEKIT_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
-SIP_TRUNK_ID   = os.getenv("LIVEKIT_SIP_TRUNK_ID", "")
+SIP_TRUNK_ID = os.getenv("LIVEKIT_SIP_TRUNK_ID", "")
 
-SIP_CALL_TO = "susant123333"   # username only — trunk knows sip.linphone.org
-ROOM_NAME   = "outbound-{}".format(datetime.now().strftime("%Y%m%d-%H%M%S"))
-USER_ID     = "susant123333"
+SIP_CALL_TO = "susant123333"  # username only — trunk knows sip.linphone.org
+ROOM_NAME = "outbound-{}".format(datetime.now().strftime("%Y%m%d-%H%M%S"))
+USER_ID = "susant123333"
 
 
 async def main():
@@ -64,7 +64,7 @@ async def main():
                 metadata=json.dumps({"outbound": True, "user_id": USER_ID}),
             )
         )
-        print("  Agent dispatched id={}".format(dispatch.id))
+        print(f"  Agent dispatched id={dispatch.id}")
 
         # Step 2: Ring Linphone — non-blocking, returns immediately
         print()
@@ -73,19 +73,20 @@ async def main():
             sip_trunk_id=SIP_TRUNK_ID,
             sip_call_to=SIP_CALL_TO,
             room_name=ROOM_NAME,
-            participant_identity="sip-{}".format(USER_ID),
+            participant_identity=f"sip-{USER_ID}",
             participant_name="Vidya AI",
             play_dialtone=True,
-            wait_until_answered=False,   # non-blocking
+            wait_until_answered=False,  # non-blocking
         )
         sip_info = await lkapi.sip.create_sip_participant(sip_req)
-        print("  Call initiated: sip_call_id={}".format(sip_info.sip_call_id))
+        print(f"  Call initiated: sip_call_id={sip_info.sip_call_id}")
         print()
         print("Your Linphone is ringing. Answer it — Vidya will greet you.")
 
     except Exception as exc:
         print("\nERROR:", exc)
         import traceback
+
         traceback.print_exc()
     finally:
         await lkapi.aclose()

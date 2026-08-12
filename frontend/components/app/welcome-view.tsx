@@ -18,15 +18,14 @@ import {
   Lock,
   MathOperations,
   Microphone,
-  MusicNote,
   type Icon as PhosphorIcon,
   Question,
   ShieldCheck,
   Trash,
 } from '@phosphor-icons/react';
 import { CallSchedulePanel } from '@/components/app/call-schedule-panel';
-import { PracticeHistoryPanel } from '@/components/app/practice-history-panel';
 import { StudentDashboard } from '@/components/app/student-dashboard';
+import { TeacherSupportPanel } from '@/components/app/teacher-support-panel';
 import { Button } from '@/components/ui/button';
 import type { LearnerMemory } from '@/hooks/useLearnerMemory';
 import { cn } from '@/lib/shadcn/utils';
@@ -39,12 +38,17 @@ type OrbState = 'idle' | 'connecting' | 'listening' | 'speaking' | 'ended';
 function AmbientBackground() {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-      <div className="bg-primary/8 absolute -top-40 left-1/2 h-[700px] w-[700px] -translate-x-1/2 rounded-full blur-[160px]" />
-      <div className="absolute top-1/3 -left-40 h-[400px] w-[400px] rounded-full bg-violet-400/6 blur-[120px]" />
-      <div className="absolute top-1/4 -right-40 h-[350px] w-[350px] rounded-full bg-indigo-400/6 blur-[110px]" />
+      {/* Primary top glow */}
+      <div className="bg-primary/10 absolute -top-40 left-1/2 h-[800px] w-[800px] -translate-x-1/2 rounded-full blur-[180px]" />
+      {/* Violet side bloom */}
+      <div className="absolute top-1/3 -left-40 h-[500px] w-[500px] rounded-full bg-violet-400/8 blur-[140px]" />
+      {/* Indigo side bloom */}
+      <div className="absolute top-1/4 -right-40 h-[450px] w-[450px] rounded-full bg-indigo-400/7 blur-[130px]" />
+      {/* Bottom cyan accent */}
+      <div className="absolute bottom-0 left-1/2 h-[300px] w-[600px] -translate-x-1/2 rounded-full bg-cyan-400/5 blur-[100px]" />
       {/* Subtle dot grid */}
       <div
-        className="absolute inset-0 opacity-[0.025]"
+        className="absolute inset-0 opacity-[0.022]"
         style={{
           backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
           backgroundSize: '28px 28px',
@@ -54,231 +58,186 @@ function AmbientBackground() {
   );
 }
 
-/* ── Educational SVG Illustration (right column) ── */
-function EduIllustration() {
-  const floatVariants = {
-    animate: (i: number) => ({
-      y: [0, -8, 0],
-      transition: {
-        duration: 3 + i * 0.5,
-        repeat: Infinity,
-        ease: 'easeInOut',
-        delay: i * 0.4,
-      },
-    }),
-  };
-
-  const bubbles = [
+/* ── Vidya Knowledge Orb (premium hero visual, right column) ── */
+function VidyaKnowledgeOrb() {
+  const subjectNodes = [
     {
       Icon: MathOperations,
-      color: 'from-violet-500/20 to-violet-600/10',
-      border: 'border-violet-400/30',
+      color: 'from-violet-500/25 to-violet-600/10',
+      border: 'border-violet-400/35',
       text: 'text-violet-300',
-      x: '-left-4',
-      y: 'top-6',
-      delay: 0,
+      angle: 0,
+      r: 108,
     },
     {
       Icon: Atom,
-      color: 'from-cyan-500/20 to-cyan-600/10',
-      border: 'border-cyan-400/30',
+      color: 'from-cyan-500/25 to-cyan-600/10',
+      border: 'border-cyan-400/35',
       text: 'text-cyan-300',
-      x: '-right-4',
-      y: 'top-10',
-      delay: 1,
+      angle: 90,
+      r: 108,
     },
     {
       Icon: Globe,
-      color: 'from-emerald-500/20 to-emerald-600/10',
-      border: 'border-emerald-400/30',
+      color: 'from-emerald-500/25 to-emerald-600/10',
+      border: 'border-emerald-400/35',
       text: 'text-emerald-300',
-      x: '-left-6',
-      y: 'bottom-12',
-      delay: 2,
+      angle: 180,
+      r: 108,
     },
     {
-      Icon: MusicNote,
-      color: 'from-amber-500/20 to-amber-600/10',
-      border: 'border-amber-400/30',
+      Icon: BookOpen,
+      color: 'from-amber-500/25 to-amber-600/10',
+      border: 'border-amber-400/35',
       text: 'text-amber-300',
-      x: '-right-2',
-      y: 'bottom-8',
-      delay: 3,
+      angle: 270,
+      r: 108,
     },
   ];
 
   return (
-    <div className="relative flex items-center justify-center" aria-hidden="true">
-      {/* Floating subject bubbles */}
-      {bubbles.map((b, i) => (
-        <motion.div
-          key={i}
-          custom={b.delay}
-          variants={floatVariants}
-          animate="animate"
-          className={cn(
-            'absolute flex h-11 w-11 items-center justify-center rounded-full border bg-gradient-to-br backdrop-blur-sm',
-            b.color,
-            b.border,
-            b.x,
-            b.y
-          )}
-        >
-          <b.Icon size={20} weight="duotone" className={b.text} aria-hidden="true" />
-        </motion.div>
-      ))}
+    <div
+      className="relative flex items-center justify-center"
+      aria-hidden="true"
+      style={{ width: 260, height: 260 }}
+    >
+      {/* Outermost ambient glow */}
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: 'radial-gradient(circle, oklch(0.65 0.22 264 / 0.12) 0%, transparent 70%)',
+        }}
+      />
 
-      {/* Central book SVG */}
-      <motion.div
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        className="relative"
+      {/* Ring 3 — outermost, very slow breathe */}
+      <div
+        className="border-primary/8 absolute rounded-full border"
+        style={{
+          width: 244,
+          height: 244,
+          animation: 'vidya-ring-breathe-slow 5s ease-in-out infinite',
+        }}
+      />
+
+      {/* Ring 2 */}
+      <div
+        className="border-primary/12 absolute rounded-full border"
+        style={{
+          width: 196,
+          height: 196,
+          animation: 'vidya-ring-breathe 3.5s ease-in-out infinite',
+        }}
+      />
+
+      {/* Ring 1 — inner */}
+      <div
+        className="border-primary/18 absolute rounded-full border"
+        style={{
+          width: 152,
+          height: 152,
+          animation: 'vidya-ring-breathe 2.5s ease-in-out infinite 0.5s',
+        }}
+      />
+
+      {/* Orbiting subject nodes */}
+      {subjectNodes.map((node, i) => {
+        const rad = (node.angle * Math.PI) / 180;
+        const x = Math.cos(rad) * node.r * 0.5;
+        const y = Math.sin(rad) * node.r * 0.5;
+        return (
+          <motion.div
+            key={i}
+            animate={{ y: [0, -7, 0] }}
+            transition={{
+              duration: 2.8 + i * 0.6,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              delay: i * 0.5,
+            }}
+            className={`absolute flex h-10 w-10 items-center justify-center rounded-full border bg-gradient-to-br backdrop-blur-sm ${node.color} ${node.border}`}
+            style={{ transform: `translate(${x}px, ${y}px)` }}
+          >
+            <node.Icon size={18} weight="duotone" className={node.text} />
+          </motion.div>
+        );
+      })}
+
+      {/* Central orb body */}
+      <div
+        className="vidya-orb-idle relative z-10 flex h-28 w-28 items-center justify-center rounded-full"
+        style={{
+          background:
+            'radial-gradient(circle at 38% 32%, oklch(0.72 0.24 264), oklch(0.40 0.28 282))',
+          border: '1px solid oklch(1 0 0 / 16%)',
+        }}
       >
+        {/* Inner highlight */}
         <div
-          className="relative flex h-48 w-48 items-center justify-center rounded-3xl"
+          className="absolute inset-0 rounded-full"
           style={{
-            background:
-              'radial-gradient(circle at 40% 40%, oklch(0.55 0.25 265 / 0.25), oklch(0.35 0.22 280 / 0.15))',
-            border: '1px solid oklch(1 0 0 / 0.1)',
-            boxShadow: '0 0 60px oklch(0.65 0.22 264 / 0.15), inset 0 1px 0 oklch(1 0 0 / 0.08)',
+            background: 'radial-gradient(circle at 30% 25%, oklch(1 0 0 / 0.12), transparent 60%)',
           }}
-        >
-          {/* Light rays */}
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => (
-            <div
-              key={i}
-              className="absolute h-px w-16 origin-left opacity-10"
-              style={{
-                background: 'linear-gradient(90deg, oklch(0.75 0.22 264), transparent)',
-                transform: `rotate(${deg}deg)`,
-                left: '50%',
-                top: '50%',
-              }}
-            />
-          ))}
-          {/* Book SVG */}
-          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" className="relative z-10">
-            <path
-              d="M40 18C40 18 25 15 12 21V63C25 57 40 60 40 60V18Z"
-              fill="white"
-              fillOpacity="0.18"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M40 18C40 18 55 15 68 21V63C55 57 40 60 40 60V18Z"
-              fill="white"
-              fillOpacity="0.08"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinejoin="round"
-            />
-            <line
-              x1="17"
-              y1="30"
-              x2="36"
-              y2="28"
-              stroke="white"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeOpacity="0.6"
-            />
-            <line
-              x1="17"
-              y1="38"
-              x2="36"
-              y2="36"
-              stroke="white"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeOpacity="0.6"
-            />
-            <line
-              x1="17"
-              y1="46"
-              x2="36"
-              y2="44"
-              stroke="white"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeOpacity="0.6"
-            />
-            <line
-              x1="44"
-              y1="28"
-              x2="63"
-              y2="30"
-              stroke="white"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeOpacity="0.35"
-            />
-            <line
-              x1="44"
-              y1="36"
-              x2="63"
-              y2="38"
-              stroke="white"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeOpacity="0.35"
-            />
-            <line
-              x1="44"
-              y1="44"
-              x2="63"
-              y2="46"
-              stroke="white"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeOpacity="0.35"
-            />
-            {/* Sparkle */}
-            <circle cx="66" cy="17" r="4" fill="white" fillOpacity="0.5" />
-            <line
-              x1="66"
-              y1="9"
-              x2="66"
-              y2="13"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeOpacity="0.5"
-            />
-            <line
-              x1="66"
-              y1="21"
-              x2="66"
-              y2="25"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeOpacity="0.5"
-            />
-            <line
-              x1="58"
-              y1="17"
-              x2="62"
-              y2="17"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeOpacity="0.5"
-            />
-            <line
-              x1="70"
-              y1="17"
-              x2="74"
-              y2="17"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeOpacity="0.5"
-            />
-          </svg>
-        </div>
-      </motion.div>
+        />
+        {/* Book SVG */}
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="relative z-10">
+          <path
+            d="M24 11C24 11 15 9 7 13V38C15 34 24 36 24 36V11Z"
+            fill="white"
+            fillOpacity="0.28"
+            stroke="white"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M24 11C24 11 33 9 41 13V38C33 34 24 36 24 36V11Z"
+            fill="white"
+            fillOpacity="0.12"
+            stroke="white"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          <line
+            x1="11"
+            y1="18"
+            x2="21"
+            y2="16.5"
+            stroke="white"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeOpacity="0.75"
+          />
+          <line
+            x1="11"
+            y1="23"
+            x2="21"
+            y2="21.5"
+            stroke="white"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeOpacity="0.75"
+          />
+          <line
+            x1="11"
+            y1="28"
+            x2="21"
+            y2="26.5"
+            stroke="white"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeOpacity="0.75"
+          />
+          {/* AI arc + node */}
+          <path
+            d="M30 8 Q36 5 41 9"
+            stroke="white"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            fill="none"
+            strokeOpacity="0.9"
+          />
+          <circle cx="41" cy="9" r="2.5" fill="white" fillOpacity="0.9" />
+        </svg>
+      </div>
     </div>
   );
 }
@@ -409,8 +368,11 @@ function FeatureCard({
   desc: string;
 }) {
   return (
-    <div className="group border-foreground/8 bg-background/60 hover:border-primary/30 hover:bg-background/80 flex flex-col gap-1.5 rounded-2xl border p-4 text-left backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-      <span className="text-primary" aria-hidden="true">
+    <div className="group bg-background/50 hover:border-primary/30 hover:bg-background/70 flex flex-col gap-2 rounded-2xl border border-white/8 p-4 text-left backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+      <span
+        className="bg-primary/10 text-primary group-hover:bg-primary/15 inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+        aria-hidden="true"
+      >
         {icon}
       </span>
       <p className="text-foreground text-sm leading-tight font-semibold">{title}</p>
@@ -506,6 +468,32 @@ function TopicCard({
       <p className="text-foreground text-sm leading-tight font-semibold">{topic.label}</p>
       <p className="text-muted-foreground text-xs leading-relaxed">{topic.desc}</p>
     </button>
+  );
+}
+
+/* ── How It Works step ── */
+function HowItWorksStep({
+  number,
+  title,
+  desc,
+  color,
+}: {
+  number: string;
+  title: string;
+  desc: string;
+  color: string;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 text-center">
+      <div
+        className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-black ${color}`}
+        aria-hidden="true"
+      >
+        {number}
+      </div>
+      <p className="text-foreground text-sm font-bold">{title}</p>
+      <p className="text-muted-foreground text-xs leading-relaxed">{desc}</p>
+    </div>
   );
 }
 
@@ -634,11 +622,11 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
       : undefined;
 
   return (
-    <div id="home" className="relative min-h-svh w-full overflow-hidden">
+    <div id="home" className="relative min-h-screen w-full overflow-hidden pt-16">
       <AmbientBackground />
 
       {/* ── Hero: above the fold ── */}
-      <div className="relative z-10 flex w-full items-center justify-center px-4 py-8 lg:min-h-[calc(100svh-60px)] lg:py-0">
+      <div className="relative z-10 flex w-full items-center justify-center px-4 py-8 lg:min-h-[calc(100vh-60px)] lg:py-10">
         <div className="mx-auto w-full max-w-6xl">
           <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[55fr_45fr] lg:gap-12">
             {/* ── Left column: headline + CTA ── */}
@@ -646,7 +634,7 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
               {/* VIDYA wordmark — always visible */}
               <div className="mb-4 flex flex-col items-center gap-1 lg:items-start">
                 <h1
-                  className="text-primary text-6xl font-black tracking-[0.15em] sm:text-7xl lg:text-8xl"
+                  className="text-primary text-5xl font-black tracking-[0.15em] sm:text-6xl lg:text-7xl"
                   style={{
                     background:
                       'linear-gradient(135deg, oklch(0.70 0.24 264), oklch(0.55 0.28 285))',
@@ -676,7 +664,7 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
               {/* Badge */}
               <div className="mb-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
                 <div
-                  className="bg-primary/10 text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold tracking-widest uppercase"
+                  className="bg-primary/12 text-primary inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[11px] font-bold tracking-widest uppercase"
                   role="status"
                   aria-live="polite"
                 >
@@ -686,7 +674,7 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
                       aria-hidden="true"
                     />
                   )}
-                  {connecting ? 'Connecting to Vidya...' : 'AI Learning Assistant'}
+                  {connecting ? 'Connecting to Vidya...' : 'Voice-First Learning Companion'}
                 </div>
                 {!connecting && (
                   <Link href="/memory">
@@ -697,18 +685,52 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
                 )}
               </div>
 
-              {/* Dynamic greeting (connecting state / returning user) */}
-              {(connecting || isReturningUser) && (
-                <p className="text-foreground mb-4 text-3xl leading-[1.15] font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
-                  {connecting ? (
-                    <>
-                      Getting your <span className="text-primary">session ready...</span>
-                    </>
-                  ) : isReturningUser && learnerName ? (
-                    <>
-                      Welcome back, <span className="text-primary">{learnerName}</span>
-                    </>
-                  ) : null}
+              {/* Hero headline — 3-line premium */}
+              {!connecting && (
+                <div className="mb-4">
+                  <h1
+                    className="mb-2 text-4xl leading-[1.1] font-black tracking-tight sm:text-5xl lg:text-6xl"
+                    style={{
+                      background:
+                        'linear-gradient(135deg, oklch(0.92 0.03 265), oklch(0.72 0.24 264) 40%, oklch(0.55 0.28 285))',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                    }}
+                  >
+                    Learn smarter.
+                    <br />
+                    Speak naturally.
+                    <br />
+                    Grow with Vidya.
+                  </h1>
+                  <p className="text-muted-foreground text-base leading-relaxed">
+                    Understand concepts, practice questions, and revise through natural voice
+                    conversations — in the language you&apos;re comfortable with.
+                  </p>
+                </div>
+              )}
+
+              {/* VIDYA wordmark during connecting */}
+              {connecting && (
+                <h1
+                  className="text-primary mb-4 text-6xl font-black tracking-[0.15em] sm:text-7xl lg:text-8xl"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, oklch(0.70 0.24 264), oklch(0.55 0.28 285))',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  VIDYA
+                </h1>
+              )}
+
+              {/* Dynamic greeting (returning user) */}
+              {!connecting && isReturningUser && learnerName && (
+                <p className="text-foreground mb-3 text-2xl font-extrabold tracking-tight">
+                  Welcome back, <span className="text-primary">{learnerName}</span>
                 </p>
               )}
 
@@ -738,6 +760,34 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
                 <div className="mb-6 w-full">
                   <StudentDashboard />
                 </div>
+              )}
+
+              {/* Trust indicators */}
+              {!connecting && (
+                <ul
+                  className="mb-5 flex flex-col items-center gap-1.5 lg:items-start"
+                  aria-label="Key features"
+                >
+                  {[
+                    'Voice-first — no typing needed',
+                    'हिंदी + English — code-mixed support',
+                    'Memory with your permission only',
+                    'Human teacher support when needed',
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="text-muted-foreground flex items-center gap-2 text-xs"
+                    >
+                      <CheckCircle
+                        size={13}
+                        weight="fill"
+                        className="text-primary shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               )}
 
               {/* Primary CTA */}
@@ -788,31 +838,70 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
                 <p className="text-muted-foreground mb-8 text-[11px]">No typing. Just speak.</p>
               )}
 
+              {/* How It Works section */}
+              {!connecting && (
+                <section
+                  id="how-it-works"
+                  className="mb-8 w-full"
+                  aria-labelledby="how-it-works-heading"
+                >
+                  <p
+                    id="how-it-works-heading"
+                    className="text-muted-foreground mb-4 text-center text-xs font-bold tracking-widest uppercase lg:text-left"
+                  >
+                    How It Works
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <HowItWorksStep
+                      number="01"
+                      title="Talk"
+                      desc="Speak naturally with Vidya in Hindi or English"
+                      color="border-primary/40 bg-primary/10 text-primary"
+                    />
+                    <HowItWorksStep
+                      number="02"
+                      title="Learn"
+                      desc="Get clear explanations and examples instantly"
+                      color="border-cyan-400/40 bg-cyan-400/10 text-cyan-400"
+                    />
+                    <HowItWorksStep
+                      number="03"
+                      title="Remember"
+                      desc="Vidya saves your progress with your permission"
+                      color="border-violet-400/40 bg-violet-400/10 text-violet-400"
+                    />
+                    <HowItWorksStep
+                      number="04"
+                      title="Improve"
+                      desc="Practice again or request human teacher support"
+                      color="border-emerald-400/40 bg-emerald-400/10 text-emerald-400"
+                    />
+                  </div>
+                </section>
+              )}
+
               {/* Feature cards */}
               {!connecting && (
-                <div
-                  id="how-it-works"
-                  className="mb-6 grid w-full grid-cols-2 gap-2 sm:grid-cols-4"
-                >
+                <div className="mb-6 grid w-full grid-cols-2 gap-2 sm:grid-cols-4">
                   <FeatureCard
-                    icon={<Lightning size={18} weight="bold" />}
+                    icon={<Lightning size={16} weight="bold" />}
                     title="Understand"
                     desc="Break difficult concepts into simple explanations"
                   />
                   <FeatureCard
-                    icon={<Question size={18} weight="bold" />}
+                    icon={<Question size={16} weight="bold" />}
                     title="Practice"
                     desc="Answer questions and receive hints"
                   />
                   <FeatureCard
-                    icon={<ArrowCounterClockwise size={18} weight="bold" />}
+                    icon={<ArrowCounterClockwise size={16} weight="bold" />}
                     title="Revise"
                     desc="Review concepts through conversation"
                   />
                   <FeatureCard
-                    icon={<Globe size={18} weight="bold" />}
-                    title="Learn Naturally"
-                    desc="Use Hindi, English, or Hinglish"
+                    icon={<Globe size={16} weight="bold" />}
+                    title="Multilingual"
+                    desc="Hindi, English, or Hinglish — your choice"
                   />
                 </div>
               )}
@@ -881,7 +970,7 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
                     />
                     <PromptChip
                       icon={<Globe size={12} weight="regular" />}
-                      text="Mujhe quadratic equations samjhao."
+                      text="मुझे quadratic equations समझाओ।"
                     />
                   </div>
                 </div>
@@ -906,55 +995,80 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
                 </div>
               )}
 
-              {/* Privacy section */}
+              {/* Privacy section — 4-card grid */}
               {!connecting && (
-                <div
-                  className="border-foreground/8 bg-background/60 mb-6 w-full rounded-2xl border p-5 backdrop-blur-sm"
-                  id="privacy"
-                >
-                  <p className="text-foreground mb-3 flex items-center gap-1.5 text-xs font-bold tracking-wider uppercase">
+                <section className="mb-6 w-full" id="privacy" aria-labelledby="privacy-heading">
+                  <p
+                    id="privacy-heading"
+                    className="text-foreground mb-3 flex items-center gap-1.5 text-xs font-bold tracking-wider uppercase"
+                  >
                     <Lock size={13} weight="duotone" className="text-primary" aria-hidden="true" />
-                    Privacy &amp; Memory
+                    Your learning stays in your control.
                   </p>
-                  <ul className="flex flex-col gap-2.5">
-                    <li className="text-muted-foreground flex items-start gap-2 text-xs">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="bg-background/50 flex items-start gap-3 rounded-2xl border border-white/8 p-4 backdrop-blur-sm">
                       <Brain
-                        size={14}
+                        size={18}
                         weight="duotone"
                         className="text-primary mt-0.5 shrink-0"
                         aria-hidden="true"
                       />
-                      <span>
-                        <strong className="text-foreground font-semibold">Optional Memory</strong> —
-                        Save learning progress only with your permission.
-                      </span>
-                    </li>
-                    <li className="text-muted-foreground flex items-start gap-2 text-xs">
+                      <div>
+                        <p className="text-foreground mb-0.5 text-xs font-bold">
+                          Permission-Based Memory
+                        </p>
+                        <p className="text-muted-foreground text-[11px] leading-relaxed">
+                          Vidya only remembers useful learning information with your permission.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="bg-background/50 flex items-start gap-3 rounded-2xl border border-white/8 p-4 backdrop-blur-sm">
                       <ShieldCheck
-                        size={14}
+                        size={18}
                         weight="duotone"
                         className="text-primary mt-0.5 shrink-0"
                         aria-hidden="true"
                       />
-                      <span>
-                        <strong className="text-foreground font-semibold">Private by design</strong>{' '}
-                        — Your data stays yours. No tracking, no selling.
-                      </span>
-                    </li>
-                    <li className="text-muted-foreground flex items-start gap-2 text-xs">
+                      <div>
+                        <p className="text-foreground mb-0.5 text-xs font-bold">
+                          Private Learning Data
+                        </p>
+                        <p className="text-muted-foreground text-[11px] leading-relaxed">
+                          Your learning information is handled through secure local storage.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="bg-background/50 flex items-start gap-3 rounded-2xl border border-white/8 p-4 backdrop-blur-sm">
                       <Trash
-                        size={14}
+                        size={18}
                         weight="regular"
                         className="text-primary mt-0.5 shrink-0"
                         aria-hidden="true"
                       />
-                      <span>
-                        <strong className="text-foreground font-semibold">Forget anytime</strong> —
-                        Delete everything Vidya knows about you in one tap.
-                      </span>
-                    </li>
-                  </ul>
-                </div>
+                      <div>
+                        <p className="text-foreground mb-0.5 text-xs font-bold">Forget Me</p>
+                        <p className="text-muted-foreground text-[11px] leading-relaxed">
+                          Ask Vidya to forget your saved information at any time.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="bg-background/50 flex items-start gap-3 rounded-2xl border border-white/8 p-4 backdrop-blur-sm">
+                      <GraduationCap
+                        size={18}
+                        weight="duotone"
+                        className="text-primary mt-0.5 shrink-0"
+                        aria-hidden="true"
+                      />
+                      <div>
+                        <p className="text-foreground mb-0.5 text-xs font-bold">Human Support</p>
+                        <p className="text-muted-foreground text-[11px] leading-relaxed">
+                          Teacher-support requests require your explicit permission before anything
+                          is shared.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
               )}
 
               {/* Feature badges */}
@@ -984,14 +1098,15 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
               </span>
             </div>
 
-            {/* ── Right column: illustration + orb + schedule ── */}
+            {/* ── Right column: knowledge orb + schedule ── */}
             <div className="order-1 flex flex-col items-center justify-center gap-8 lg:order-2">
-              <EduIllustration />
+              <VidyaKnowledgeOrb />
               <VoiceOrb state={orbState} />
               {/* Call schedule panel — visible right on the homepage */}
               {!connecting && (
-                <div className="w-full max-w-sm" id="schedule">
+                <div className="flex w-full max-w-sm flex-col gap-6" id="schedule">
                   <CallSchedulePanel />
+                  <TeacherSupportPanel />
                 </div>
               )}
             </div>
@@ -1000,8 +1115,8 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
       </div>
 
       {/* Footer */}
-      <div className="absolute bottom-4 left-0 flex w-full items-center justify-center">
-        <p className="text-muted-foreground text-[11px]">
+      <footer className="relative z-10 w-full border-t border-white/5 py-8 text-center backdrop-blur-sm">
+        <p className="text-muted-foreground text-xs">
           Powered by{' '}
           <a
             target="_blank"
@@ -1020,8 +1135,17 @@ export const WelcomeView = ({ startButtonText, onStartCall }: WelcomeViewProps) 
           >
             LiveKit Agents
           </a>
+          {' · '}
+          <a
+            target="_blank"
+            rel="noopener noreferrer"
+            href="https://deepgram.com"
+            className="underline underline-offset-2 hover:opacity-80"
+          >
+            Deepgram Nova-3
+          </a>
         </p>
-      </div>
+      </footer>
 
       {/* ── About section (anchor for nav) ── */}
       <section id="about" aria-label="About" />

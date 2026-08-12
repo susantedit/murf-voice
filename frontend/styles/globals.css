@@ -128,6 +128,14 @@
   }
 }
 
+/* Hide Next.js dev mode overlay badges ("1 Issue") */
+[data-next-badge],
+[data-nextjs-toast],
+nextjs-portal,
+div[class*='nextjs-toast'] {
+  display: none !important;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -146,23 +154,46 @@
 ────────────────────────────────────────────────────────────────────────── */
 
 @keyframes orb-ping-fast {
-  0%, 100% { transform: scale(1); opacity: 0.25; }
-  50%       { transform: scale(1.15); opacity: 0; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.25;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
 }
 
 @keyframes orb-ping-slow {
-  0%, 100% { transform: scale(1); opacity: 0.15; }
-  50%       { transform: scale(1.08); opacity: 0; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.15;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0;
+  }
 }
 
 @keyframes orb-spin-slow {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes orb-pulse-soft {
-  0%, 100% { opacity: 0.2; }
-  50%       { opacity: 0.05; }
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.05;
+  }
 }
 
 /* State-scoped ring rules via wrapper class on orb container */
@@ -195,12 +226,125 @@
 /* ── Waveform equalizer animation (VidyaOrb speaking state) ──────────────── */
 
 @keyframes waveform-bounce {
-  from { transform: scaleY(0.4); }
-  to   { transform: scaleY(1); }
+  from {
+    transform: scaleY(0.4);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* Alias used by VidyaOrb speaking waveform bars */
+@keyframes vidya-waveform-bounce {
+  from {
+    transform: scaleY(0.3);
+  }
+  to {
+    transform: scaleY(1.2);
+  }
 }
 
 /* Devanagari script rendering — ensure correct font for Hindi text */
-[lang="hi"],
+[lang='hi'],
 .devanagari {
   font-family: var(--font-noto-devanagari), 'Noto Sans Devanagari', sans-serif;
+}
+
+/* ── Premium Vidya Redesign Animations ──────────────────────────────────── */
+
+@keyframes vidya-ring-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.18;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.06;
+  }
+}
+
+@keyframes vidya-ring-breathe-slow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.12;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.03;
+  }
+}
+
+@keyframes vidya-node-orbit {
+  from {
+    transform: rotate(0deg) translateX(var(--orbit-r, 72px)) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(var(--orbit-r, 72px)) rotate(-360deg);
+  }
+}
+
+@keyframes vidya-knowledge-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 32px 8px oklch(0.65 0.22 264 / 0.18);
+  }
+  50% {
+    box-shadow: 0 0 56px 18px oklch(0.65 0.22 264 / 0.08);
+  }
+}
+
+@keyframes vidya-knowledge-pulse-cyan {
+  0%,
+  100% {
+    box-shadow: 0 0 32px 8px oklch(0.75 0.18 200 / 0.22);
+  }
+  50% {
+    box-shadow: 0 0 56px 18px oklch(0.75 0.18 200 / 0.08);
+  }
+}
+
+@keyframes vidya-knowledge-pulse-green {
+  0%,
+  100% {
+    box-shadow: 0 0 32px 8px oklch(0.78 0.18 145 / 0.22);
+  }
+  50% {
+    box-shadow: 0 0 56px 18px oklch(0.78 0.18 145 / 0.08);
+  }
+}
+
+@keyframes vidya-node-float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes vidya-step-glow {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* State-scoped orb animation helpers */
+.vidya-orb-listening {
+  animation: vidya-knowledge-pulse-cyan 1.2s ease-in-out infinite;
+}
+.vidya-orb-speaking {
+  animation: vidya-knowledge-pulse-green 0.8s ease-in-out infinite;
+}
+.vidya-orb-idle {
+  animation: vidya-knowledge-pulse 3s ease-in-out infinite;
+}
+.vidya-orb-thinking {
+  animation: vidya-knowledge-pulse 1.8s ease-in-out infinite;
 }

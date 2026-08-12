@@ -110,6 +110,24 @@ def init_db() -> None:
             );
 
             CREATE INDEX IF NOT EXISTS idx_callhist_user ON call_history(user_id);
+
+            CREATE TABLE IF NOT EXISTS escalations (
+                reference_id      TEXT PRIMARY KEY,
+                user_id           TEXT NOT NULL,
+                name              TEXT,
+                reason            TEXT NOT NULL,
+                summary           TEXT NOT NULL,
+                what_was_checked  TEXT,
+                urgency           TEXT DEFAULT 'medium',
+                language          TEXT,
+                follow_up_method  TEXT,
+                status            TEXT DEFAULT 'open',
+                created_at        TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_escalations_user ON escalations(user_id);
+            CREATE INDEX IF NOT EXISTS idx_escalations_status ON escalations(status);
         """)
 
         # Add new columns to users table idempotently (Day 6)

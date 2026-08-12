@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRoomContext } from '@livekit/components-react';
 import { ConnectionState } from 'livekit-client';
+import { useRoomContext } from '@livekit/components-react';
 import type { CallStatusEvent } from '@/types/call';
 
 /**
@@ -25,7 +25,7 @@ export function useCallStatus(): { status: CallStatusEvent['status'] | null } {
       payload: Uint8Array,
       _participant: unknown,
       _kind: unknown,
-      topic?: string,
+      topic?: string
     ) => {
       if (topic !== 'vidya-tools') return;
       try {

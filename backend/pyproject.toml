@@ -25,6 +25,7 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "ruff",
+    "hypothesis>=6.0",
 ]
 
 [tool.setuptools.packages.find]
