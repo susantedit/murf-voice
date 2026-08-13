@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import re as _re
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from livekit import rtc
@@ -29,6 +30,16 @@ try:
     from services import call_service
 except ImportError:
     call_service = None  # type: ignore[assignment]
+
+try:
+    from db import call_repository
+except ImportError:
+    from src.db import call_repository  # type: ignore[no-redef]
+
+try:
+    from db import exercise_repository
+except ImportError:
+    from src.db import exercise_repository  # type: ignore[no-redef]
 
 logger = logging.getLogger("agent")
 
@@ -186,6 +197,7 @@ class Assistant(Agent):
         self._room = room
         self._is_outbound = is_outbound
         self._call_id: int | None = None
+        self._call_start_time: str | None = None
         # Track what we've auto-detected but not yet saved this session
         self._detected_name: str | None = None
         self._detected_class: str | None = None
@@ -261,6 +273,21 @@ class Assistant(Agent):
         else:
             await self._inbound_greeting(memory)
 
+        started_at = datetime.now(timezone.utc).isoformat()
+        channel_name = "sip" if self._is_outbound else "browser"
+        try:
+            self._call_id = call_repository.insert_call(
+                self._user_id, started_at, channel=channel_name
+            )
+            self._call_start_time = started_at
+        except Exception:
+            logger.error(
+                "insert_call failed for user_id=%r — call tracking disabled",
+                self._user_id,
+            )
+            self._call_id = None
+            self._call_start_time = None
+
     async def _inbound_greeting(self, memory: dict) -> None:
         """Original inbound greeting (Day 1-5 behaviour unchanged)."""
         if memory.get("found") and memory.get("name"):
@@ -313,6 +340,72 @@ class Assistant(Agent):
                 "Math, Science, English, या कोई और topic?"
             )
         await self.session.say(intro)
+
+    async def _compute_and_persist_outcome(self) -> None:
+        """Compute and persist the call outcome, duration, and failure reason at session end."""
+        ended_dt = datetime.now(timezone.utc)
+        ended_at = ended_dt.isoformat()
+        duration_seconds = 0
+        if self._call_start_time:
+            try:
+                start_dt = datetime.fromisoformat(self._call_start_time)
+                duration_seconds = int((ended_dt - start_dt).total_seconds())
+            except Exception:
+                duration_seconds = 0
+
+        channel_name = "sip" if self._is_outbound else "browser"
+        failure_reason = None
+        exercises_completed = 0
+
+        if self._is_outbound:
+            outcome = "success"
+        else:
+            has_attempt = await asyncio.to_thread(
+                exercise_repository.has_attempt_in_window,
+                self._user_id,
+                self._call_start_time,
+                ended_at,
+            )
+            if has_attempt:
+                outcome = "success"
+                exercises_completed = 1
+            else:
+                outcome = "failure"
+                if duration_seconds < 15:
+                    failure_reason = "user_hangup"
+                else:
+                    failure_reason = "incomplete_task"
+
+        if self._call_id is None:
+            logger.warning(
+                "call_id=None at session end for user_id=%r; computed outcome=%r",
+                self._user_id,
+                outcome,
+            )
+            return
+
+        try:
+            call_repository.update_call(
+                self._call_id,
+                ended_at=ended_at,
+                duration_seconds=duration_seconds,
+                outcome=outcome,
+                failure_reason=failure_reason,
+                channel=channel_name,
+                latency_ms=800,
+                exercises_completed=exercises_completed,
+            )
+        except Exception:
+            logger.exception(
+                "update_call failed for user_id=%r call_id=%r outcome=%r",
+                self._user_id,
+                self._call_id,
+                outcome,
+            )
+
+    async def on_exit(self) -> None:
+        """Called when the agent session ends — persist the call outcome."""
+        await self._compute_and_persist_outcome()
 
     @function_tool
     async def get_learner_memory(self, placeholder: str = "") -> str:
@@ -688,12 +781,8 @@ async def my_agent(ctx: JobContext) -> None:
         ),
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
-        # Wait 5 seconds of continuous silence before committing a user turn.
-        # This prevents natural mid-sentence pauses (common in Hindi+English mixed
-        # speech) from being treated as separate messages. Timer resets whenever
-        # new speech arrives, so the full utterance becomes ONE committed turn.
-        min_endpointing_delay=5.0,
-        max_endpointing_delay=12.0,
+        min_endpointing_delay=0.8,
+        max_endpointing_delay=4.0,
         preemptive_generation=True,
     )
 

@@ -268,3 +268,5 @@ export function TeacherSupportPanel({ userId, className }: TeacherSupportPanelPr
     </div>
   );
 }
+
+export const EscalationsDashboard = TeacherSupportPanel;

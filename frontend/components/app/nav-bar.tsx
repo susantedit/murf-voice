@@ -18,11 +18,10 @@ interface NavLink {
 }
 
 const NAV_LINKS: NavLink[] = [
-  { label: 'Home', href: '/#home' },
-  { label: 'How It Works', href: '/#how-it-works' },
-  { label: 'Practice', href: '/#learning' },
-  { label: 'Teacher Support', href: '/#schedule' },
-  { label: 'Privacy', href: '/#privacy' },
+  { label: 'Home', href: '/' },
+  { label: 'Analytics Dashboard', href: '/dashboard' },
+  { label: 'Teacher Support', href: '/escalations' },
+  { label: 'Learner Memory', href: '/memory' },
 ];
 
 const API_BASE = process.env.NEXT_PUBLIC_MEMORY_API_URL ?? 'http://localhost:8888';

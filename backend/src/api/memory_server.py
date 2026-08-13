@@ -40,6 +40,13 @@ except ImportError:
     from src.db.exercise_repository import get_topic_stats  # type: ignore[no-redef]
     from src.db.learner_repository import get_learner  # type: ignore[no-redef]
 
+try:
+    from db.analytics_repository import get_dashboard_metrics
+except ImportError:
+    from src.db.analytics_repository import (
+        get_dashboard_metrics,  # type: ignore[no-redef]
+    )
+
 logger = logging.getLogger(__name__)
 
 _USER_ID_MAX_LEN = 200
@@ -90,6 +97,16 @@ class MemoryHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         """GET /memory/{user_id}, GET /calls/{user_id}, or GET /escalations."""
+        # Route /dashboard/metrics
+        if self.path in ("/dashboard/metrics", "/dashboard/metrics/"):
+            try:
+                metrics = get_dashboard_metrics()
+                self._send_json(200, metrics)
+            except Exception:
+                logger.exception("Error in GET /dashboard/metrics")
+                self._send_json(500, {"error": "internal_error"})
+            return
+
         # Route /escalations
         if self.path.startswith("/escalations"):
             path_parts = self.path.split("?")[0].strip("/").split("/")

@@ -34,8 +34,7 @@ import type { FeedbackCardProps } from '@/components/app/feedback-card';
 import { LearningContextPanel } from '@/components/app/learning-context-panel';
 import { VidyaLogo } from '@/components/app/vidya-logo';
 import { useToolEvents } from '@/hooks/useToolEvents';
-import { useMicStatus } from '@/hooks/useMicStatus';
-import type { MicStatus } from '@/hooks/useMicStatus';
+import { useMicStatus, type MicStatus } from '@/hooks/useMicStatus';
 import { useResponseTimeout } from '@/hooks/useResponseTimeout';
 import { cn } from '@/lib/shadcn/utils';
 import { getUserId } from '@/lib/user-identity';
@@ -277,8 +276,6 @@ function StateBadge({ orbState }: { orbState: OrbState }) {
 }
 
 // ── Mic Status Badge ───────────────────────────────────────────────────────
-
-import type { MicStatus } from '@/hooks/useMicStatus';
 
 function MicStatusBadge({ status, errorMessage }: { status: MicStatus; errorMessage?: string }) {
   if (status === 'listening' || status === 'unavailable') return null; // nominal — don't clutter

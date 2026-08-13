@@ -20,16 +20,21 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
     return dict(row) if row is not None else {}
 
 
-def insert_call(user_id: str, started_at: str, topic: str | None = None) -> int:
+def insert_call(
+    user_id: str,
+    started_at: str,
+    topic: str | None = None,
+    channel: str = "browser",
+) -> int:
     """Insert a new call_history row with status='answered'. Return its id."""
     with get_connection() as conn:
         cursor = conn.execute(
             """
             INSERT INTO call_history
-                (user_id, started_at, topic, status, retry_attempted)
-            VALUES (?, ?, ?, 'answered', 0)
+                (user_id, started_at, topic, status, retry_attempted, channel)
+            VALUES (?, ?, ?, 'answered', 0, ?)
             """,
-            (user_id, started_at, topic),
+            (user_id, started_at, topic, channel),
         )
     return cursor.lastrowid  # type: ignore[return-value]
 
@@ -43,6 +48,11 @@ def update_call(
     performance: str | None = None,
     status: str | None = None,
     retry_attempted: int | None = None,
+    outcome: str | None = None,
+    failure_reason: str | None = None,
+    channel: str | None = None,
+    latency_ms: int | None = None,
+    exercises_completed: int | None = None,
 ) -> None:
     """Update non-None fields on an existing call_history row."""
     fields = {
@@ -52,6 +62,11 @@ def update_call(
         "performance": performance,
         "status": status,
         "retry_attempted": retry_attempted,
+        "outcome": outcome,
+        "failure_reason": failure_reason,
+        "channel": channel,
+        "latency_ms": latency_ms,
+        "exercises_completed": exercises_completed,
     }
     updates = {k: v for k, v in fields.items() if v is not None}
     if not updates:

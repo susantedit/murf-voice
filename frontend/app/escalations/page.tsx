@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { EscalationsDashboard } from '@/components/app/escalations-dashboard';
+import { TeacherSupportPanel as EscalationsDashboard } from '@/components/app/teacher-support-panel';
 
 export const metadata: Metadata = {
   title: 'Escalation Requests — Vidya',

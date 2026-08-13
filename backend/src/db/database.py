@@ -141,6 +141,17 @@ def init_db() -> None:
             with contextlib.suppress(sqlite3.OperationalError):
                 conn.execute(_col_sql)
 
+        # Add outcome and analytics columns to call_history idempotently (Day 8 extended)
+        for _col_sql in [
+            "ALTER TABLE call_history ADD COLUMN outcome TEXT",
+            "ALTER TABLE call_history ADD COLUMN failure_reason TEXT",
+            "ALTER TABLE call_history ADD COLUMN channel TEXT DEFAULT 'browser'",
+            "ALTER TABLE call_history ADD COLUMN latency_ms INTEGER DEFAULT 800",
+            "ALTER TABLE call_history ADD COLUMN exercises_completed INTEGER DEFAULT 0",
+        ]:
+            with contextlib.suppress(sqlite3.OperationalError):
+                conn.execute(_col_sql)
+
 
 # Run once at import time so any module that does `from src.db.database import ...`
 # gets a ready-to-use database automatically.

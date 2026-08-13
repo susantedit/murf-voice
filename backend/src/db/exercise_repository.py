@@ -66,3 +66,21 @@ def get_topic_stats(user_id: str) -> list[dict[str, Any]]:
             (user_id,),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def has_attempt_in_window(user_id: str, started_at: str | None, ended_at: str) -> bool:
+    """Return True if >= 1 exercise_attempts row for user_id falls within [started_at, ended_at]."""
+    if started_at is None:
+        return False
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT 1 FROM exercise_attempts
+            WHERE user_id = ?
+              AND attempted_at >= ?
+              AND attempted_at <= ?
+            LIMIT 1
+            """,
+            (user_id, started_at, ended_at),
+        ).fetchone()
+    return row is not None
