@@ -54,7 +54,7 @@ export function AgentChatTranscript({
   return (
     <Conversation className={className} {...props}>
       <ConversationContent>
-        {messages.map((receivedMessage) => {
+        {messages.filter(m => typeof m.message === 'string' && m.message.trim().length > 0).map((receivedMessage) => {
           const { id, timestamp, from, message } = receivedMessage;
           const locale = navigator?.language ?? 'en-US';
           const messageOrigin = from?.isLocal ? 'user' : 'assistant';

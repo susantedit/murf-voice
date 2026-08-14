@@ -434,7 +434,12 @@ function CustomTranscript({ messages, agentState }: CustomTranscriptProps) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, agentState]);
 
-  if (messages.length === 0) {
+  const displayMessages = messages.filter((msg) => {
+    const text = typeof msg.message === 'string' ? msg.message.trim() : '';
+    return text.length > 0;
+  });
+
+  if (displayMessages.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
         <ChatTeardrop size={32} weight="regular" className="text-muted-foreground/30" aria-hidden="true" />
@@ -446,7 +451,7 @@ function CustomTranscript({ messages, agentState }: CustomTranscriptProps) {
 
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto p-4">
-      {messages.map((msg) => {
+      {displayMessages.map((msg) => {
         const isUser =
           msg.from?.isLocal === true ||
           (msg as any).type === 'userTranscript' ||
@@ -456,6 +461,25 @@ function CustomTranscript({ messages, agentState }: CustomTranscriptProps) {
           hour: '2-digit',
           minute: '2-digit',
         });
+
+        // Check if message is from an Indian Luminary specialist
+        const isRamanujan =
+          !isUser &&
+          (msg.message?.includes('Ramanujan') ||
+            msg.message?.includes('Srinivasa') ||
+            msg.message?.includes('Maths specialist') ||
+            msg.message?.includes('रामानुजन') ||
+            msg.message?.includes('Aryabhata') ||
+            msg.message?.includes('आर्यभट्ट'));
+
+        const isKalam =
+          !isUser && (msg.message?.includes('Kalam') || msg.message?.includes('कलाम'));
+
+        const isTagore =
+          !isUser && (msg.message?.includes('Tagore') || msg.message?.includes('टैगोर'));
+
+        const isSpecialist = isRamanujan || isKalam || isTagore;
+        const specialistBadge = isRamanujan ? 'R' : isKalam ? 'K' : isTagore ? 'T' : 'M';
 
         return (
           <div
@@ -468,20 +492,24 @@ function CustomTranscript({ messages, agentState }: CustomTranscriptProps) {
                 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[9px] font-extrabold shadow-sm',
                 isUser
                   ? 'border-primary/40 bg-primary/25 text-primary border'
-                  : 'border-violet-400/30 bg-violet-500/20 text-violet-300 border'
+                  : isSpecialist
+                    ? 'border-amber-400/40 bg-amber-500/20 text-amber-300 border'
+                    : 'border-violet-400/30 bg-violet-500/20 text-violet-300 border'
               )}
               aria-hidden="true"
             >
-              {isUser ? 'YOU' : 'V'}
+              {isUser ? 'YOU' : isSpecialist ? specialistBadge : 'V'}
             </div>
             {/* Bubble */}
             <div className={cn('flex max-w-[85%] flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
               <div
                 className={cn(
-                  'devanagari rounded-2xl px-4 py-2.5 text-xs leading-relaxed sm:text-sm',
+                  'devanagari rounded-2xl px-4 py-2.5 text-xs leading-relaxed sm:text-sm shadow-sm border',
                   isUser
-                    ? 'border-primary/30 bg-primary/20 text-foreground rounded-br-xs border shadow-sm'
-                    : 'bg-secondary/50 border-white/10 text-foreground rounded-bl-xs border shadow-sm'
+                    ? 'border-primary/30 bg-primary/20 text-foreground rounded-br-xs'
+                    : isSpecialist
+                      ? 'border-amber-400/25 bg-amber-950/30 text-slate-100 rounded-bl-xs'
+                      : 'border-white/10 bg-secondary/50 text-foreground rounded-bl-xs'
                 )}
               >
                 {msg.message}

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -133,6 +136,13 @@ HUMAN ESCALATION RULES (Day 7 — Know When to Ask for Human Help):
 
 5. NATIVE SCRIPT MANDATORY:
    - ALL Hindi text MUST be in Devanagari script ALWAYS (e.g., "नमस्ते", "टीचर"). NEVER write Romanized Hindi ("namaste", "main aapki madad").
+
+SPECIALIST HANDOFF RULES (Day 9 — Maths Practice Specialist):
+1. WHEN TO HAND OFF:
+   - When the learner asks for dedicated, step-by-step Maths practice, solving mathematical equations/problems (e.g. algebra, arithmetic calculation, geometry, trigonometry, calculus, step-by-step equation solving) → call `transfer_to_maths_specialist`.
+   - Before calling `transfer_to_maths_specialist`, announce to the learner: "I'll connect you to our Maths specialist, Srinivasa Ramanujan, to solve this step by step." (or Hindi: "मैं आपको हमारे Maths specialist, श्रीनिवास रामानुजन से connect कर रही हूँ।").
+2. WHEN TO STAY WITH VIDYA:
+   - General concept questions, Science (photosynthesis, physics, chemistry), Social Studies, English/Grammar, general revision, memory requests, or basic high-level curriculum questions STAY with Vidya. Do NOT call `transfer_to_maths_specialist` for non-math topics.
 """
 
 
@@ -703,6 +713,148 @@ class Assistant(Agent):
                 "error": result.get("error", "unknown_error"),
                 "message": "माफ़ कीजिए, teacher-support request अभी create नहीं हो पाई। कृपया थोड़ी देर बाद फिर कोशिश करें।",
             }
+        )
+
+    @function_tool
+    async def transfer_to_maths_specialist(
+        self,
+        topic: str,
+        user_question: str = "",
+    ) -> Agent:
+        """
+        Hand off the conversation to Srinivasa Ramanujan, the dedicated Maths Practice Specialist.
+
+        Call this tool ONLY when the learner asks for:
+        - Step-by-step math problem solving (algebra, linear equations, arithmetic, fractions, geometry, trigonometry)
+        - In-depth mathematical calculations or working through equations
+        - Dedicated mathematics practice sessions
+
+        Do NOT call for general science, english grammar, history, general revision, or basic concept overviews.
+        """
+        await self._emit_tool_event(
+            "agent_handoff",
+            {
+                "from": "Vidya",
+                "to": "Srinivasa Ramanujan (Maths Specialist)",
+                "topic": topic,
+                "user_question": user_question,
+            },
+        )
+        with contextlib.suppress(RuntimeError):
+            await self.session.say(
+                "I'll connect you to our Maths specialist, Srinivasa Ramanujan, to solve this step by step."
+            )
+        return MathsSpecialistAssistant(
+            user_id=self._user_id,
+            student_name=self._detected_name,
+            grade_level=self._detected_class,
+            initial_query=user_question or topic,
+            room=self._room,
+        )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Day 9 — Learning & Literacy: Srinivasa Ramanujan, the Maths Practice Specialist
+# ──────────────────────────────────────────────────────────────────────────────
+
+MATHS_SPECIALIST_PROMPT = """
+You are Srinivasa Ramanujan (श्रीनिवास रामानुजन), the legendary Indian mathematician and dedicated Maths Practice Specialist for Indian students.
+
+CORE ROLE & SOCRATIC METHOD:
+- Your single mission is to help students understand mathematical concepts and solve math problems step by step with warmth and passion for numbers.
+- NEVER give the final numerical answer or full solution directly. Guide the student step by step using the Socratic method.
+- Ask one small question or prompt at a time (e.g., "What is the first step to isolate x?", "What is 20 minus 5?").
+- Celebrate small breakthroughs and provide encouraging, positive reinforcement.
+- Keep voice explanations concise (1-3 sentences).
+- LANGUAGE RULE: ALL Hindi words MUST be written in Devanagari script ALWAYS. NEVER write Romanized Hindi.
+- Hinglish/English/Hindi mirroring: Mirror the student's chosen language.
+
+HAND BACK TO VIDYA:
+- When the student finishes their math problem and wants to study another subject (Science, English, History, etc.), or asks a non-math question, or explicitly asks for Vidya → call `hand_back_to_vidya`.
+- Before calling `hand_back_to_vidya`, tell the student warmly: "I'll pass you back to Vidya for your other subjects."
+"""
+
+
+class MathsSpecialistAssistant(Agent):
+    def __init__(
+        self,
+        user_id: str = "anonymous",
+        student_name: str | None = None,
+        grade_level: str | None = None,
+        initial_query: str = "",
+        room: rtc.Room | None = None,
+    ) -> None:
+        super().__init__(instructions=MATHS_SPECIALIST_PROMPT)
+        self._user_id = user_id
+        self._student_name = student_name
+        self._grade_level = grade_level
+        self._initial_query = initial_query
+        self._room = room
+
+    async def _emit_tool_event(self, event_type: str, data: dict | None = None) -> None:
+        """Push real tool activity to the frontend via LiveKit data channel."""
+        if self._room is None:
+            return
+        payload = json.dumps({"type": event_type, **(data or {})})
+        try:
+            await self._room.local_participant.publish_data(
+                payload.encode("utf-8"),
+                reliable=True,
+                topic="vidya-tools",
+            )
+        except Exception:
+            logger.exception("Failed to publish tool event type=%r", event_type)
+
+    async def on_enter(self) -> None:
+        """Introduce Srinivasa Ramanujan and acknowledge the forwarded math topic/problem."""
+        await self._emit_tool_event(
+            "agent_active",
+            {
+                "agent_name": "Srinivasa Ramanujan",
+                "role": "Maths Practice Specialist",
+                "user_id": self._user_id,
+            },
+        )
+        if self._student_name:
+            greeting = f"नमस्ते {self._student_name}! I'm Srinivasa Ramanujan, your Maths specialist."
+        else:
+            greeting = "नमस्ते! I'm Srinivasa Ramanujan, your Maths specialist."
+
+        if self._initial_query:
+            greeting += (
+                f" I see you'd like to work on '{self._initial_query}'. "
+                "Let's solve it step by step! What do you think our first step should be?"
+            )
+        else:
+            greeting += (
+                " What math problem or concept would you like to practice today?"
+            )
+
+        await self.session.say(greeting)
+
+    @function_tool
+    async def hand_back_to_vidya(self, reason: str = "topic_completed") -> Agent:
+        """
+        Hand the conversation back to Vidya, the main learning assistant.
+
+        Call this when:
+        1. The student finishes their math problem and wants to study other subjects (Science, English, History, etc.).
+        2. The student asks a non-math question.
+        3. The student explicitly asks to speak with Vidya again.
+        """
+        await self._emit_tool_event(
+            "agent_handoff",
+            {
+                "from": "Srinivasa Ramanujan (Maths Specialist)",
+                "to": "Vidya",
+                "reason": reason,
+            },
+        )
+        with contextlib.suppress(RuntimeError):
+            await self.session.say("I'll connect you back to Vidya now.")
+        return Assistant(
+            user_id=self._user_id,
+            room=self._room,
         )
 
 
