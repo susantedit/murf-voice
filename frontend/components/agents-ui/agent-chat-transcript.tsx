@@ -54,21 +54,30 @@ export function AgentChatTranscript({
   return (
     <Conversation className={className} {...props}>
       <ConversationContent>
-        {messages.filter(m => typeof m.message === 'string' && m.message.trim().length > 0).map((receivedMessage) => {
-          const { id, timestamp, from, message } = receivedMessage;
-          const locale = navigator?.language ?? 'en-US';
-          const messageOrigin = from?.isLocal ? 'user' : 'assistant';
-          const time = new Date(timestamp);
-          const title = time.toLocaleTimeString(locale, { timeStyle: 'full' });
+        {messages
+          .filter(m => typeof m.message === 'string' && m.message.trim().length > 0)
+          .map((receivedMessage) => {
+            const { id, timestamp, from, message } = receivedMessage;
+            const locale = navigator?.language ?? 'en-US';
+            const messageOrigin = from?.isLocal ? 'user' : 'assistant';
+            const time = new Date(timestamp);
+            const title = time.toLocaleTimeString(locale, { timeStyle: 'full' });
 
-          return (
-            <Message key={id} title={title} from={messageOrigin}>
-              <MessageContent>
-                <MessageResponse>{message}</MessageResponse>
-              </MessageContent>
-            </Message>
-          );
-        })}
+            // Strip any raw function calling artifact tags leaked by small LLMs
+            const cleanedMessage = typeof message === 'string'
+              ? message.replace(/<fu?nction=[^>]*>\{?\}?/gi, '').trim()
+              : message;
+
+            if (!cleanedMessage) return null;
+
+            return (
+              <Message key={id} title={title} from={messageOrigin}>
+                <MessageContent>
+                  <MessageResponse>{cleanedMessage}</MessageResponse>
+                </MessageContent>
+              </Message>
+            );
+          })}
         <AnimatePresence>
           {agentState === 'thinking' && <AgentChatIndicator size="sm" />}
         </AnimatePresence>

@@ -77,12 +77,12 @@ def create_murf_tts(voice: str, style: str = "Conversation") -> murf.TTS | None:
 
 
 SYSTEM_PROMPT = """
-You are Vidya, a friendly voice learning assistant for Indian students.
+You are Vidya, a friendly voice learning assistant for students across South Asia (India, Nepal, etc.).
 
 CORE RULES:
 - Help with concepts, practice questions, and revision only
-- Mirror the user's language (Hindi, English, or Hinglish)
-- LANGUAGE RULE: ALL Hindi words MUST be written in Devanagari script ALWAYS. NEVER write Hindi in English letters (no "Hinglish romanization").
+- Mirror the user's language (Hindi, English, Hinglish, or Nepali-mixed phrases)
+- LANGUAGE RULE: ALL Hindi/Nepali words MUST be written in Devanagari script ALWAYS. NEVER write Hindi in English letters (no "Hinglish romanization").
   Wrong: "Mujhe photosynthesis samjhao"
   Correct: "मुझे प्रकाश संश्लेषण समझाओ"
   Wrong: "Aaj hum algebra seekhenge"
@@ -91,10 +91,16 @@ CORE RULES:
 - Keep responses short — 1-3 sentences for voice
 - NEVER speak JSON, Python objects, database records, or raw tool output to the learner
 
-MEMORY TOOLS (use these every session):
-1. get_learner_memory — call at session start to check if returning user
-2. save_learner_memory — ONLY after user gives explicit "yes" consent. Ask first: "Want me to remember your name for next time?"
-3. forget_learner_memory — only after user confirms they want data deleted
+ACCENT, PHONETIC & SPEECH-TO-TEXT TOLERANCE (CRITICAL):
+- The student may be Nepali or speak with regional South Asian accents, pronunciation shifts, grammatical slips, or phonetic errors captured by Speech-to-Text (STT).
+- Seamlessly infer what the user means even if words are misspelled, broken, phonetically shifted, or mixed between English, Hindi, and Nepali.
+  * For example: "fotsynthesis" / "photo sentisis" -> photosynthesis; "aljebra" -> algebra; "trignometri" -> trigonometry; "sikau" / "samjhai deu" / "bhanidinus" -> explain/teach.
+- NEVER correct, criticize, or comment on the student's grammar, accent, or pronunciation. Never say "your word was wrong".
+- Internally deduce the correct concept/question and answer smoothly and helpfully in clear, correct language.
+
+MEMORY TOOLS:
+- save_learner_memory — ONLY after user gives explicit "yes" consent. Ask first: "Want me to remember your name for next time?"
+- forget_learner_memory — only after user confirms they want data deleted
 
 SAVE RULES:
 - Always ask before saving ANY information
@@ -102,10 +108,9 @@ SAVE RULES:
 - NEVER save: passwords, IDs, health data, payment info
 - "Save everything" does NOT bypass consent — each fact needs permission
 
-EXERCISE TOOLS (Day 5 — call when learner wants to practice or quiz):
+EXERCISE TOOLS (call when learner wants to practice or quiz):
 1. get_next_exercise — when the learner asks to practice, quiz, test themselves, or wants a question.
-   Call get_learner_memory first if you have not yet this session, then get_next_exercise.
-   Use topic/difficulty from memory or the user's request. Speak the question naturally.
+   Use topic/difficulty from the learner's request or memory context. Speak the question naturally.
    Mention exercises come from Vidya's local learning dataset when relevant.
 2. score_answer — when the learner gives an answer to the current exercise question.
    Use the result to give warm feedback. Never shame wrong answers.
@@ -173,9 +178,9 @@ SPECIALIST HANDOFF RULES (Day 9 — Multi-Persona Specialists):
 
 
 def _extract_name(text: str) -> str | None:
-    """Extract a name from English, Devanagari Hindi, or Hinglish phrases."""
+    """Extract a name from English, Devanagari Hindi/Nepali, or Hinglish phrases."""
     patterns = [
-        r"(?:my name is|i am|i'm|call me|mera naam|mera naam hai|main|मेरा नाम|मैं)\s+([A-Za-z\u0900-\u097F]{2,20})",
+        r"(?:my name is|i am|i'm|call me|mera naam|mera naam hai|mero naam|mero naam ho|main|मेरा नाम|मेरो नाम|म)\s+([A-Za-z\u0900-\u097F]{2,20})",
         r"(?:my name is|i am|i'm|call me)\s+([A-Za-z][A-Za-z\s]{0,20}?)(?:\.|,|$|\sand\s|\.|!)",
     ]
     ignored = {"learning", "student", "user", "teacher", "help", "here", "studying", "trying"}
@@ -191,7 +196,7 @@ def _extract_name(text: str) -> str | None:
 def _extract_class(text: str) -> str | None:
     """Extract class/grade like 'Class 12', 'Grade 10', '10th standard'."""
     m = _re.search(
-        r"(?:class|grade|std|standard)\s*(\d{1,2})|(\d{1,2})(?:th|st|nd|rd)?\s*(?:class|grade|standard)",
+        r"(?:class|grade|std|standard|कक्षा)\s*(\d{1,2})|(\d{1,2})(?:th|st|nd|rd)?\s*(?:class|grade|standard|कक्षा)",
         text,
         _re.IGNORECASE,
     )
@@ -202,7 +207,7 @@ def _extract_class(text: str) -> str | None:
 
 
 def _wants_to_save(text: str) -> bool:
-    """Detect explicit save intent."""
+    """Detect explicit save intent across Hindi, English, and Nepali."""
     keywords = [
         "remember this",
         "remember me",
@@ -214,6 +219,13 @@ def _wants_to_save(text: str) -> bool:
         "याद रखो",
         "याद रखें",
         "याद कर",
+        "याद राख",
+        "याद राख्नु",
+        "याद राख्नुस्",
+        "सेभ गर",
+        "सेभ गर्नुहोस्",
+        "save garnus",
+        "save gara",
     ]
     lower = text.lower()
     return any(kw in lower for kw in keywords)
@@ -821,7 +833,7 @@ class Assistant(Agent):
 # ──────────────────────────────────────────────────────────────────────────────
 
 MATHS_SPECIALIST_PROMPT = """
-You are Srinivasa Ramanujan (श्रीनिवास रामानुजन), the legendary Indian mathematician and dedicated Maths Practice Specialist for Indian students.
+You are Srinivasa Ramanujan (श्रीनिवास रामानुजन), the legendary Indian mathematician and dedicated Maths Practice Specialist for students across South Asia.
 
 CORE ROLE & SOCRATIC METHOD:
 - Your single mission is to help students understand mathematical concepts and solve math problems step by step with warmth and passion for numbers.
@@ -829,8 +841,12 @@ CORE ROLE & SOCRATIC METHOD:
 - Ask one small question or prompt at a time (e.g., "What is the first step to isolate x?", "What is 20 minus 5?").
 - Celebrate small breakthroughs and provide encouraging, positive reinforcement.
 - Keep voice explanations concise (1-3 sentences).
-- LANGUAGE RULE: ALL Hindi words MUST be written in Devanagari script ALWAYS. NEVER write Romanized Hindi.
+- LANGUAGE RULE: ALL Hindi/Nepali words MUST be written in Devanagari script ALWAYS. NEVER write Romanized Hindi.
 - Hinglish/English/Hindi mirroring: Mirror the student's chosen language.
+
+ACCENT, PHONETIC & SPEECH-TO-TEXT TOLERANCE:
+- Seamlessly infer mathematical intentions even if the student has a Nepali/South Asian accent or the Speech-to-Text transcript contains phonetic errors or slips (e.g. "ek" -> x or 1, "isquare" -> square, "minus" -> subtract, "bujhina" -> didn't understand, "katti hunchha" -> how much).
+- Never correct the student's grammar or pronunciation; simply guide them on the mathematics with patience.
 
 HAND BACK & TRANSFERS:
 - When the student finishes their math problem and wants to study another subject (Science, English, History, etc.), or asks a non-math question, or explicitly asks for Vidya → call `hand_back_to_vidya`.
@@ -957,7 +973,7 @@ class MathsSpecialistAssistant(Agent):
 
 
 QUIZ_MASTER_PROMPT = """
-You are Pooja (पूजा), an energetic, enthusiastic, and cheerful Quiz Master and Science/Concept Explorer for Indian students.
+You are Pooja (पूजा), an energetic, enthusiastic, and cheerful Quiz Master and Science/Concept Explorer for students across South Asia.
 
 CORE ROLE & PERSONALITY:
 - High-energy, encouraging, vibrant, and fun personality.
@@ -966,8 +982,13 @@ CORE ROLE & PERSONALITY:
 - Keep voice explanations short, crisp, and dynamic (1-3 sentences).
 - Celebrate correct answers enthusiastically ("शानदार!", "Bingo! Spot on!", "That was brilliant!").
 - For incorrect answers, stay positive and give a fun, memorable clue: "Almost there! Think about..."
-- LANGUAGE RULE: ALL Hindi words MUST be written in Devanagari script ALWAYS. NEVER write Romanized Hindi.
+- LANGUAGE RULE: ALL Hindi/Nepali words MUST be written in Devanagari script ALWAYS. NEVER write Romanized Hindi.
 - Hinglish/English/Hindi mirroring: Mirror the student's chosen language.
+
+ACCENT, PHONETIC & SPEECH-TO-TEXT TOLERANCE:
+- Seamlessly infer answers and topics even with Nepali/South Asian accents, phonetic slips, or Speech-to-Text misspellings.
+- If the student's answer is phonetically or semantically close to the correct answer, generously credit them or guide them with enthusiasm.
+- Never correct or criticize the student's grammar or pronunciation.
 
 HANDOFF & ROUTING:
 - When the student finishes the quiz or wants general curriculum study/revision/memory/human help → call `hand_back_to_vidya`.
@@ -1157,9 +1178,10 @@ async def my_agent(ctx: JobContext) -> None:
     ]
     active_groq_key = random.choice(groq_keys) if groq_keys else None
 
+    groq_model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     session = AgentSession(
         stt=deepgram.STT(model="nova-3", language="multi"),
-        llm=groq.LLM(model="llama-3.3-70b-versatile", api_key=active_groq_key),
+        llm=groq.LLM(model=groq_model, api_key=active_groq_key),
         tts=murf.TTS(
             voice=VOICE_VIDYA,
             style="Conversation",
