@@ -114,7 +114,7 @@ export function EscalationCard({
       <div className="mt-4 flex flex-col gap-3">
         {status === 'created' && referenceId && (
           <div className="flex flex-col gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 shadow-inner">
-            <span className="text-emerald-400/80 text-[10px] font-bold tracking-widest uppercase">
+            <span className="text-[10px] font-bold tracking-widest text-emerald-400/80 uppercase">
               Reference ID
             </span>
             <div className="flex items-center justify-between gap-2">

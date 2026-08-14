@@ -49,8 +49,31 @@ logger = logging.getLogger("agent")
 load_dotenv(".env.local", override=False)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Day 2 — Learning & Literacy: Vidya, the voice learning assistant
+# Day 2 & Day 9 — Persona & Murf Falcon Voice Configuration
 # ──────────────────────────────────────────────────────────────────────────────
+
+VOICE_VIDYA = "Anisha"  # Warm, conversational female voice for Vidya
+VOICE_MATHS_SPECIALIST = "Samar"  # Clear, analytical male voice for Ramanujan / Maths Specialist
+VOICE_QUIZ_MASTER = "Pooja"  # Energetic, dynamic female voice for Pooja / Quiz Master
+
+
+def create_murf_tts(voice: str, style: str = "Conversation") -> murf.TTS | None:
+    """Helper to instantiate a Murf Falcon streaming TTS instance.
+
+    Safely returns None if MURF_API_KEY is not set (e.g. in offline unit test runs).
+    """
+    try:
+        if not os.environ.get("MURF_API_KEY"):
+            return None
+        return murf.TTS(
+            voice=voice,
+            style=style,
+            tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
+            text_pacing=True,
+        )
+    except Exception as e:
+        logger.warning("Could not create Murf TTS for voice=%s: %s", voice, e)
+        return None
 
 
 SYSTEM_PROMPT = """
@@ -137,12 +160,15 @@ HUMAN ESCALATION RULES (Day 7 — Know When to Ask for Human Help):
 5. NATIVE SCRIPT MANDATORY:
    - ALL Hindi text MUST be in Devanagari script ALWAYS (e.g., "नमस्ते", "टीचर"). NEVER write Romanized Hindi ("namaste", "main aapki madad").
 
-SPECIALIST HANDOFF RULES (Day 9 — Maths Practice Specialist):
-1. WHEN TO HAND OFF:
-   - When the learner asks for dedicated, step-by-step Maths practice, solving mathematical equations/problems (e.g. algebra, arithmetic calculation, geometry, trigonometry, calculus, step-by-step equation solving) → call `transfer_to_maths_specialist`.
+SPECIALIST HANDOFF RULES (Day 9 — Multi-Persona Specialists):
+1. MATHS PRACTICE SPECIALIST (Srinivasa Ramanujan, Voice: Samar):
+   - When the learner asks for dedicated, step-by-step Maths practice, solving mathematical equations/problems (algebra, arithmetic calculation, geometry, trigonometry, calculus, step-by-step equation solving) → call `transfer_to_maths_specialist`.
    - Before calling `transfer_to_maths_specialist`, announce to the learner: "I'll connect you to our Maths specialist, Srinivasa Ramanujan, to solve this step by step." (or Hindi: "मैं आपको हमारे Maths specialist, श्रीनिवास रामानुजन से connect कर रही हूँ।").
-2. WHEN TO STAY WITH VIDYA:
-   - General concept questions, Science (photosynthesis, physics, chemistry), Social Studies, English/Grammar, general revision, memory requests, or basic high-level curriculum questions STAY with Vidya. Do NOT call `transfer_to_maths_specialist` for non-math topics.
+2. QUIZ MASTER & CONCEPT EXPLORER (Pooja, Voice: Pooja):
+   - When the learner asks for a rapid-fire quiz, practice test challenge, game-like quiz session, or asks to study with Pooja → call `transfer_to_quiz_master`.
+   - Before calling `transfer_to_quiz_master`, announce to the learner: "I'll connect you to Pooja, our Quiz Master, for an exciting quiz challenge!" (or Hindi: "मैं आपको हमारी Quiz Master, पूजा से connect कर रही हूँ।").
+3. WHEN TO STAY WITH VIDYA (Voice: Anisha):
+   - General concept explanations, Science (photosynthesis, physics, chemistry), Social Studies, English/Grammar, general revision, memory requests, or basic high-level curriculum questions STAY with Vidya.
 """
 
 
@@ -200,8 +226,13 @@ class Assistant(Agent):
         memory_task: asyncio.Task | None = None,
         room: rtc.Room | None = None,
         is_outbound: bool = False,
+        tts: murf.TTS | None = None,
     ) -> None:
-        super().__init__(instructions=SYSTEM_PROMPT)
+        agent_tts = tts if tts is not None else create_murf_tts(VOICE_VIDYA)
+        init_kwargs: dict = {"instructions": SYSTEM_PROMPT}
+        if agent_tts is not None:
+            init_kwargs["tts"] = agent_tts
+        super().__init__(**init_kwargs)
         self._user_id = user_id
         self._memory_task = memory_task
         self._room = room
@@ -722,7 +753,7 @@ class Assistant(Agent):
         user_question: str = "",
     ) -> Agent:
         """
-        Hand off the conversation to Srinivasa Ramanujan, the dedicated Maths Practice Specialist.
+        Hand off the conversation to Srinivasa Ramanujan, the dedicated Maths Practice Specialist (Voice: Samar).
 
         Call this tool ONLY when the learner asks for:
         - Step-by-step math problem solving (algebra, linear equations, arithmetic, fractions, geometry, trigonometry)
@@ -734,8 +765,8 @@ class Assistant(Agent):
         await self._emit_tool_event(
             "agent_handoff",
             {
-                "from": "Vidya",
-                "to": "Srinivasa Ramanujan (Maths Specialist)",
+                "from": f"Vidya (Voice: {VOICE_VIDYA})",
+                "to": f"Srinivasa Ramanujan (Maths Specialist - Voice: {VOICE_MATHS_SPECIALIST})",
                 "topic": topic,
                 "user_question": user_question,
             },
@@ -752,9 +783,41 @@ class Assistant(Agent):
             room=self._room,
         )
 
+    @function_tool
+    async def transfer_to_quiz_master(
+        self,
+        topic: str = "",
+    ) -> Agent:
+        """
+        Hand off the conversation to Pooja, the energetic Quiz Master & Concept Explorer (Voice: Pooja).
+
+        Call this tool when the learner asks to:
+        - Take an interactive quiz, practice quiz game, or rapid fire test
+        - Have a lively challenge or practice session with Pooja
+        """
+        await self._emit_tool_event(
+            "agent_handoff",
+            {
+                "from": f"Vidya (Voice: {VOICE_VIDYA})",
+                "to": f"Pooja (Quiz Master - Voice: {VOICE_QUIZ_MASTER})",
+                "topic": topic,
+            },
+        )
+        with contextlib.suppress(RuntimeError):
+            await self.session.say(
+                "I'll connect you to Pooja, our energetic Quiz Master, for an exciting quiz challenge!"
+            )
+        return QuizMasterAssistant(
+            user_id=self._user_id,
+            student_name=self._detected_name,
+            grade_level=self._detected_class,
+            topic=topic,
+            room=self._room,
+        )
+
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Day 9 — Learning & Literacy: Srinivasa Ramanujan, the Maths Practice Specialist
+# Day 9 — Multi-Persona Specialists: Srinivasa Ramanujan (Samar) & Pooja (Pooja)
 # ──────────────────────────────────────────────────────────────────────────────
 
 MATHS_SPECIALIST_PROMPT = """
@@ -769,8 +832,9 @@ CORE ROLE & SOCRATIC METHOD:
 - LANGUAGE RULE: ALL Hindi words MUST be written in Devanagari script ALWAYS. NEVER write Romanized Hindi.
 - Hinglish/English/Hindi mirroring: Mirror the student's chosen language.
 
-HAND BACK TO VIDYA:
+HAND BACK & TRANSFERS:
 - When the student finishes their math problem and wants to study another subject (Science, English, History, etc.), or asks a non-math question, or explicitly asks for Vidya → call `hand_back_to_vidya`.
+- When the student wants a fast-paced quiz or fun practice game → call `transfer_to_quiz_master`.
 - Before calling `hand_back_to_vidya`, tell the student warmly: "I'll pass you back to Vidya for your other subjects."
 """
 
@@ -783,8 +847,13 @@ class MathsSpecialistAssistant(Agent):
         grade_level: str | None = None,
         initial_query: str = "",
         room: rtc.Room | None = None,
+        tts: murf.TTS | None = None,
     ) -> None:
-        super().__init__(instructions=MATHS_SPECIALIST_PROMPT)
+        agent_tts = tts if tts is not None else create_murf_tts(VOICE_MATHS_SPECIALIST)
+        init_kwargs: dict = {"instructions": MATHS_SPECIALIST_PROMPT}
+        if agent_tts is not None:
+            init_kwargs["tts"] = agent_tts
+        super().__init__(**init_kwargs)
         self._user_id = user_id
         self._student_name = student_name
         self._grade_level = grade_level
@@ -812,6 +881,7 @@ class MathsSpecialistAssistant(Agent):
             {
                 "agent_name": "Srinivasa Ramanujan",
                 "role": "Maths Practice Specialist",
+                "voice": VOICE_MATHS_SPECIALIST,
                 "user_id": self._user_id,
             },
         )
@@ -845,8 +915,8 @@ class MathsSpecialistAssistant(Agent):
         await self._emit_tool_event(
             "agent_handoff",
             {
-                "from": "Srinivasa Ramanujan (Maths Specialist)",
-                "to": "Vidya",
+                "from": f"Srinivasa Ramanujan (Voice: {VOICE_MATHS_SPECIALIST})",
+                "to": f"Vidya (Voice: {VOICE_VIDYA})",
                 "reason": reason,
             },
         )
@@ -854,6 +924,171 @@ class MathsSpecialistAssistant(Agent):
             await self.session.say("I'll connect you back to Vidya now.")
         return Assistant(
             user_id=self._user_id,
+            room=self._room,
+        )
+
+    @function_tool
+    async def transfer_to_quiz_master(
+        self,
+        topic: str = "",
+    ) -> Agent:
+        """
+        Hand off from Maths specialist to Pooja, the Quiz Master.
+        """
+        await self._emit_tool_event(
+            "agent_handoff",
+            {
+                "from": f"Srinivasa Ramanujan (Voice: {VOICE_MATHS_SPECIALIST})",
+                "to": f"Pooja (Quiz Master - Voice: {VOICE_QUIZ_MASTER})",
+                "topic": topic,
+            },
+        )
+        with contextlib.suppress(RuntimeError):
+            await self.session.say(
+                "Let's connect you to Pooja, our Quiz Master, for an exciting quiz challenge!"
+            )
+        return QuizMasterAssistant(
+            user_id=self._user_id,
+            student_name=self._student_name,
+            grade_level=self._grade_level,
+            topic=topic or self._initial_query,
+            room=self._room,
+        )
+
+
+QUIZ_MASTER_PROMPT = """
+You are Pooja (पूजा), an energetic, enthusiastic, and cheerful Quiz Master and Science/Concept Explorer for Indian students.
+
+CORE ROLE & PERSONALITY:
+- High-energy, encouraging, vibrant, and fun personality.
+- Make learning feel like an exciting quiz challenge!
+- When the student enters, propose a quick quiz question or challenge them on their topic of choice.
+- Keep voice explanations short, crisp, and dynamic (1-3 sentences).
+- Celebrate correct answers enthusiastically ("शानदार!", "Bingo! Spot on!", "That was brilliant!").
+- For incorrect answers, stay positive and give a fun, memorable clue: "Almost there! Think about..."
+- LANGUAGE RULE: ALL Hindi words MUST be written in Devanagari script ALWAYS. NEVER write Romanized Hindi.
+- Hinglish/English/Hindi mirroring: Mirror the student's chosen language.
+
+HANDOFF & ROUTING:
+- When the student finishes the quiz or wants general curriculum study/revision/memory/human help → call `hand_back_to_vidya`.
+- When the student asks for in-depth, step-by-step math problem solving or equation calculations → call `transfer_to_maths_specialist`.
+- Before calling `hand_back_to_vidya`, tell the student: "Awesome job on the quiz! Connecting you back to Vidya now."
+"""
+
+
+class QuizMasterAssistant(Agent):
+    def __init__(
+        self,
+        user_id: str = "anonymous",
+        student_name: str | None = None,
+        grade_level: str | None = None,
+        topic: str = "",
+        room: rtc.Room | None = None,
+        tts: murf.TTS | None = None,
+    ) -> None:
+        agent_tts = tts if tts is not None else create_murf_tts(VOICE_QUIZ_MASTER)
+        init_kwargs: dict = {"instructions": QUIZ_MASTER_PROMPT}
+        if agent_tts is not None:
+            init_kwargs["tts"] = agent_tts
+        super().__init__(**init_kwargs)
+        self._user_id = user_id
+        self._student_name = student_name
+        self._grade_level = grade_level
+        self._topic = topic
+        self._room = room
+
+    async def _emit_tool_event(self, event_type: str, data: dict | None = None) -> None:
+        """Push real tool activity to the frontend via LiveKit data channel."""
+        if self._room is None:
+            return
+        payload = json.dumps({"type": event_type, **(data or {})})
+        try:
+            await self._room.local_participant.publish_data(
+                payload.encode("utf-8"),
+                reliable=True,
+                topic="vidya-tools",
+            )
+        except Exception:
+            logger.exception("Failed to publish tool event type=%r", event_type)
+
+    async def on_enter(self) -> None:
+        """Introduce Pooja, the Quiz Master, and start the quiz challenge."""
+        await self._emit_tool_event(
+            "agent_active",
+            {
+                "agent_name": "Pooja",
+                "role": "Quiz Master & Science Explorer",
+                "voice": VOICE_QUIZ_MASTER,
+                "user_id": self._user_id,
+            },
+        )
+        if self._student_name:
+            greeting = f"नमस्ते {self._student_name}! I'm Pooja, your Quiz Master!"
+        else:
+            greeting = "नमस्ते! I'm Pooja, your Quiz Master!"
+
+        if self._topic:
+            greeting += (
+                f" Ready for a quick quiz challenge on '{self._topic}'? "
+                "Let's test your knowledge! Say 'ready' whenever you're set!"
+            )
+        else:
+            greeting += (
+                " Ready for a fun practice quiz? What topic would you like to test your skills on today?"
+            )
+
+        await self.session.say(greeting)
+
+    @function_tool
+    async def hand_back_to_vidya(self, reason: str = "quiz_completed") -> Agent:
+        """
+        Hand the conversation back to Vidya, the main learning assistant.
+
+        Call this when the student finishes the quiz, wants regular concept tutoring,
+        or asks for Vidya.
+        """
+        await self._emit_tool_event(
+            "agent_handoff",
+            {
+                "from": f"Pooja (Voice: {VOICE_QUIZ_MASTER})",
+                "to": f"Vidya (Voice: {VOICE_VIDYA})",
+                "reason": reason,
+            },
+        )
+        with contextlib.suppress(RuntimeError):
+            await self.session.say("Connecting you back to Vidya now!")
+        return Assistant(
+            user_id=self._user_id,
+            room=self._room,
+        )
+
+    @function_tool
+    async def transfer_to_maths_specialist(
+        self,
+        topic: str,
+        user_question: str = "",
+    ) -> Agent:
+        """
+        Hand off from Pooja to Srinivasa Ramanujan for step-by-step math problem solving.
+        """
+        await self._emit_tool_event(
+            "agent_handoff",
+            {
+                "from": f"Pooja (Voice: {VOICE_QUIZ_MASTER})",
+                "to": f"Srinivasa Ramanujan (Voice: {VOICE_MATHS_SPECIALIST})",
+                "topic": topic,
+                "user_question": user_question,
+            },
+        )
+        with contextlib.suppress(RuntimeError):
+            await self.session.say(
+                "Let's bring in our Maths specialist, Srinivasa Ramanujan, to solve this step by step!"
+            )
+        return MathsSpecialistAssistant(
+            user_id=self._user_id,
+            student_name=self._student_name,
+            grade_level=self._grade_level,
+            initial_query=user_question or topic,
             room=self._room,
         )
 
@@ -926,7 +1161,7 @@ async def my_agent(ctx: JobContext) -> None:
         stt=deepgram.STT(model="nova-3", language="multi"),
         llm=groq.LLM(model="llama-3.3-70b-versatile", api_key=active_groq_key),
         tts=murf.TTS(
-            voice="Anisha",
+            voice=VOICE_VIDYA,
             style="Conversation",
             tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
             text_pacing=True,

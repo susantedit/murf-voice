@@ -1,8 +1,5 @@
 import React, { type ComponentPropsWithoutRef, useEffect, useRef } from 'react';
 
-
-
-
 const PRECISIONS = ['lowp', 'mediump', 'highp'];
 const FS_MAIN_SHADER = `\nvoid main(void){
     vec4 color = vec4(0.0,0.0,0.0,1.0);

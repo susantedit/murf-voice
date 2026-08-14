@@ -74,6 +74,14 @@ function toolEventToItem(event: ToolEvent): ActivityItem {
       label = event.result ? `✓ Answer evaluated — ${event.result}` : '✓ Answer evaluated';
       kind = 'tool';
       break;
+    case 'agent_handoff':
+      label = `🤝 Handoff: ${event.from ?? 'Agent'} ➔ ${event.to ?? 'Specialist'}`;
+      kind = 'tool';
+      break;
+    case 'agent_active':
+      label = `🎙️ ${event.agent_name ?? 'Assistant'} active (${event.role ?? 'Tutor'})${event.voice ? ` • Voice: ${event.voice}` : ''}`;
+      kind = 'speaking';
+      break;
     case 'tool_error':
       label = event.label ?? 'Tool error';
       kind = 'error';
@@ -265,6 +273,13 @@ export function AIActivityPanel({ className }: { className?: string }) {
           },
         ]);
         continue;
+      }
+      if (event.type === 'agent_handoff') {
+        toast(`Agent Handoff: ${event.to ?? 'Connecting specialist'}`, {
+          description: `Voice switched seamlessly via Murf Falcon TTS.`,
+          icon: <Lightning size={16} weight="duotone" className="text-primary" />,
+          duration: 4000,
+        });
       }
       newItems.push(toolEventToItem(event));
     }

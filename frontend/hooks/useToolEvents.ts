@@ -13,7 +13,9 @@ export interface ToolEvent {
     | 'escalation_consent_requested'
     | 'escalation_created'
     | 'escalation_denied'
-    | 'escalation_failed';
+    | 'escalation_failed'
+    | 'agent_handoff'
+    | 'agent_active';
   tool?: string;
   label?: string;
   topic?: string;
@@ -31,6 +33,12 @@ export interface ToolEvent {
   language?: string;
   status?: string;
   error?: string;
+  from?: string;
+  to?: string;
+  agent_name?: string;
+  role?: string;
+  voice?: string;
+  user_question?: string;
   receivedAt: Date;
 }
 

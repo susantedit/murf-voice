@@ -1,0 +1,5 @@
+{"ts":"2026-08-14T01:58:18.709Z","session":"20260814-015818","kind":"server_start","data":{"port":5500,"host":"0.0.0.0","root":"f:\\murf-voice","https":false,"live_reload":true}}
+{"ts":"2026-08-14T01:58:23.781Z","session":"20260814-015818","kind":"http_request","data":{"method":"GET","path":"/","status":200,"duration_ms":0}}
+{"ts":"2026-08-14T01:58:34.296Z","session":"20260814-015818","kind":"ws_connect","data":{"client_id":"c0","url":"http://localhost:5500/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36","viewport":[1777,827]}}
+{"ts":"2026-08-14T01:58:35.130Z","session":"20260814-015818","kind":"http_request","data":{"method":"GET","path":"/favicon.ico","status":404,"duration_ms":2}}
+{"ts":"2026-08-14T02:00:59.688Z","session":"20260814-015818","kind":"ws_disconnect","data":{"client_id":"c0"}}

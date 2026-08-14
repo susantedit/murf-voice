@@ -1,25 +1,27 @@
-# Day 9 — Multi-Agent Handoff (Maths Practice Specialist)
+# Day 9 — Multi-Agent Multi-Persona Handoff (Anisha, Samar, Pooja)
 
-This document describes the design, architecture, Socratic pedagogy, context preservation, and test suite for the **Multi-Agent Handoff** system implemented in the **Vidya** AI voice assistant for Indian students.
+This document describes the design, architecture, persona division, Socratic pedagogy, context preservation, and test suite for the **Multi-Agent Multi-Persona Handoff** system implemented in the **Vidya** AI voice assistant for Indian students.
 
 ---
 
-## 1. Overview & Objectives
+## 1. Overview & Persona Voice Mapping
 
-In voice learning, a generalist assistant should not attempt to be an expert in everything. While **Vidya** handles broad learning topics (Science, English, revision, quizzes, and curriculum guidance), mathematical problem-solving requires a dedicated pedagogical strategy: **step-by-step Socratic guidance without giving away answers directly**.
+In voice learning, different educational scenarios benefit from distinct tutor personalities and voice characteristics:
 
-For Day 9, we introduce **Aryabhata**, a specialized **Maths Practice Specialist Agent**, and integrate a bidirectional handoff between Vidya and Aryabhata.
+| Persona Name | Personality & Pedagogical Role | Murf Falcon Voice | Style | Key Responsibilities |
+|---|---|---|---|---|
+| **Vidya** | Warm, encouraging, nurturing primary tutor | **`Anisha`** | `Conversation` | Concept explanations, revision, curriculum navigation, learner memory, human escalation |
+| **Srinivasa Ramanujan** | Analytical, enthusiastic, methodical mentor | **`Samar`** | `Conversation` | In-depth Socratic step-by-step problem solving for algebra, arithmetic, fractions, equations |
+| **Pooja** | Energetic, vibrant, playful quizmaster | **`Pooja`** | `Conversation` | Interactive practice quizzes, fast-paced challenge questions, science exploration |
 
 ### Key Objectives
-1. **Clear Division of Roles**:
-   - **Vidya (Main Agent)**: Concepts, general science, english grammar, revision, quizzes, and learner memory.
-   - **Aryabhata (Maths Specialist)**: In-depth, step-by-step mathematical problem solving (algebra, arithmetic, linear equations, fractions, trigonometry, geometry) using Socratic guidance.
-2. **Framework-Level Agent Handoff**: Using LiveKit Agents SDK (`livekit-agents ~1.4`), returning an `Agent` instance from a `@function_tool` to transfer voice session control.
+1. **Clear Division of Roles & Voices**: Each agent is initialized with its own dedicated Murf Falcon TTS streaming instance (`tts=murf.TTS(voice=...)`), dynamically switching voices during handoff.
+2. **Framework-Level Agent Handoff**: Using LiveKit Agents SDK (`livekit-agents ~1.4`), returning an `Agent` instance from a `@function_tool` to transfer voice session control seamlessly.
 3. **Smooth Audio Handoff UX**:
    - Main agent verbally announces the transfer before switching.
-   - Specialist agent introduces itself and immediately references the forwarded problem upon `on_enter`.
-4. **Context Preservation**: Forwarding learner identity (`user_id`, `student_name`, `grade_level`, `initial_query`) across agents without asking the student to repeat themselves.
-5. **Bidirectional Routing (Hand Back)**: Allowing the specialist to return the session to Vidya when the math task is complete or the user switches topics.
+   - Specialist agent introduces itself and immediately references the forwarded problem/topic upon `on_enter`.
+4. **Context Preservation**: Forwarding learner identity (`user_id`, `student_name`, `grade_level`, `topic`/`initial_query`) across agents without asking the student to repeat themselves.
+5. **Bidirectional & Cross-Specialist Routing**: Allowing specialists to return the session to Vidya or hand off directly to another specialist (e.g. Ramanujan ↔ Pooja).
 
 ---
 
@@ -29,111 +31,53 @@ For Day 9, we introduce **Aryabhata**, a specialized **Maths Practice Specialist
 sequenceDiagram
     autonumber
     actor Learner as Student (e.g. Aarav)
-    participant Vidya as Vidya (Main Learning Assistant)
+    participant Vidya as Vidya (Voice: Anisha)
     participant LiveKit as LiveKit AgentSession
-    participant Aryabhata as Aryabhata (Maths Specialist)
+    participant Ramanujan as Ramanujan (Voice: Samar)
+    participant Pooja as Pooja (Voice: Pooja)
 
     Learner->>Vidya: "Can you help me solve 3x + 7 = 22 step by step?"
     Vidya->>Vidya: Identifies detailed math problem solving trigger
-    Vidya->>Learner: "I'll connect you to our Maths specialist, Aryabhata, to solve this step by step."
+    Vidya->>Learner: "I'll connect you to our Maths specialist, Srinivasa Ramanujan, to solve this step by step."
     Vidya->>LiveKit: Calls transfer_to_maths_specialist(topic="linear equations", user_question="3x + 7 = 22")
-    Note over Vidya,Aryabhata: Returns MathsSpecialistAssistant(context)
-    LiveKit->>Aryabhata: Switches active agent & executes on_enter()
-    Aryabhata->>Learner: "नमस्ते Aarav! I'm Aryabhata, your Maths specialist. I see you'd like to work on '3x + 7 = 22'. Let's solve it step by step! What do you think our first step should be?"
-    Learner->>Aryabhata: "Subtract 7 from both sides so 3x = 15."
-    Aryabhata->>Learner: "Spot on! Now divide both sides by 3. What do you get for x?"
-    Learner->>Aryabhata: "x is 5! Thanks, now can we learn how plants make food?"
-    Aryabhata->>LiveKit: Calls hand_back_to_vidya(reason="topic_switched_to_science")
-    Note over Aryabhata,Vidya: Returns Assistant(context)
-    LiveKit->>Vidya: Switches back to Vidya & resumes session
-    Vidya->>Learner: "Welcome back! Let's explore photosynthesis together."
+    Note over Vidya,Ramanujan: Switches TTS voice: Anisha ➔ Samar
+    LiveKit->>Ramanujan: Switches active agent & executes on_enter()
+    Ramanujan->>Learner: "नमस्ते Aarav! I'm Srinivasa Ramanujan, your Maths specialist. I see you'd like to work on '3x + 7 = 22'. Let's solve it step by step!"
+    Learner->>Ramanujan: "Subtract 7 from both sides so 3x = 15."
+    Ramanujan->>Learner: "Spot on! Now divide both sides by 3. What do you get for x?"
+    Learner->>Ramanujan: "x is 5! Can we do a fun quiz on astronomy with Pooja now?"
+    Ramanujan->>LiveKit: Calls transfer_to_quiz_master(topic="astronomy")
+    Note over Ramanujan,Pooja: Switches TTS voice: Samar ➔ Pooja
+    LiveKit->>Pooja: Switches active agent & executes on_enter()
+    Pooja->>Learner: "नमस्ते Aarav! I'm Pooja, your Quiz Master! Ready for a quick quiz challenge on astronomy?"
+    Learner->>Pooja: "Ready!"
 ```
 
 ---
 
 ## 3. Implementation Details
 
-### 3.1. Main Agent Handoff Tool (`transfer_to_maths_specialist`)
-Located in `backend/src/agent.py` inside class `Assistant`:
+### 3.1. Voice Setup in `backend/src/agent.py`
 
 ```python
-@function_tool
-async def transfer_to_maths_specialist(
-    self,
-    topic: str,
-    user_question: str = "",
-) -> Agent:
-    """
-    Hand off the conversation to Aryabhata, the dedicated Maths Practice Specialist.
-    Call this tool ONLY when the learner asks for step-by-step math problem solving,
-    equations, algebra, arithmetic, or dedicated mathematics practice.
-    """
-    await self._emit_tool_event(
-        "agent_handoff",
-        {
-            "from": "Vidya",
-            "to": "Aryabhata (Maths Specialist)",
-            "topic": topic,
-            "user_question": user_question,
-        },
-    )
-    try:
-        await self.session.say(
-            "I'll connect you to our Maths specialist, Aryabhata, to solve this step by step."
-        )
-    except RuntimeError:
-        pass
-    return MathsSpecialistAssistant(
-        user_id=self._user_id,
-        student_name=self._detected_name,
-        grade_level=self._detected_class,
-        initial_query=user_question or topic,
-        room=self._room,
-    )
-```
+VOICE_VIDYA = "Anisha"
+VOICE_MATHS_SPECIALIST = "Samar"
+VOICE_QUIZ_MASTER = "Pooja"
 
-### 3.2. Maths Specialist Agent (`MathsSpecialistAssistant`)
-Located in `backend/src/agent.py`:
+class Assistant(Agent):
+    def __init__(self, ..., tts: murf.TTS | None = None):
+        agent_tts = tts or create_murf_tts(VOICE_VIDYA)
+        super().__init__(instructions=SYSTEM_PROMPT, tts=agent_tts)
 
-```python
 class MathsSpecialistAssistant(Agent):
-    def __init__(
-        self,
-        user_id: str = "anonymous",
-        student_name: str | None = None,
-        grade_level: str | None = None,
-        initial_query: str = "",
-        room: rtc.Room | None = None,
-    ) -> None:
-        super().__init__(instructions=MATHS_SPECIALIST_PROMPT)
-        self._user_id = user_id
-        self._student_name = student_name
-        self._grade_level = grade_level
-        self._initial_query = initial_query
-        self._room = room
+    def __init__(self, ..., tts: murf.TTS | None = None):
+        agent_tts = tts or create_murf_tts(VOICE_MATHS_SPECIALIST)
+        super().__init__(instructions=MATHS_SPECIALIST_PROMPT, tts=agent_tts)
 
-    async def on_enter(self) -> None:
-        """Introduce Aryabhata and acknowledge the forwarded math problem."""
-        greeting = f"नमस्ते {self._student_name}!" if self._student_name else "नमस्ते!"
-        greeting += " I'm Aryabhata, your Maths specialist."
-        if self._initial_query:
-            greeting += f" I see you'd like to work on '{self._initial_query}'. Let's solve it step by step! What do you think our first step should be?"
-        else:
-            greeting += " What math problem or concept would you like to practice today?"
-        await self.session.say(greeting)
-
-    @function_tool
-    async def hand_back_to_vidya(self, reason: str = "topic_completed") -> Agent:
-        """Hand the conversation back to Vidya, the main learning assistant."""
-        await self._emit_tool_event(
-            "agent_handoff",
-            {"from": "Aryabhata (Maths Specialist)", "to": "Vidya", "reason": reason},
-        )
-        try:
-            await self.session.say("I'll connect you back to Vidya now.")
-        except RuntimeError:
-            pass
-        return Assistant(user_id=self._user_id, room=self._room)
+class QuizMasterAssistant(Agent):
+    def __init__(self, ..., tts: murf.TTS | None = None):
+        agent_tts = tts or create_murf_tts(VOICE_QUIZ_MASTER)
+        super().__init__(instructions=QUIZ_MASTER_PROMPT, tts=agent_tts)
 ```
 
 ---
@@ -144,14 +88,20 @@ The test suite is located in `backend/tests/test_handoff.py`:
 
 | Test Name | Verification Objective |
 |---|---|
+| `test_persona_voices_configuration` | Confirms Anisha, Samar, and Pooja voice constants. |
 | `test_normal_query_stays_with_vidya` | Science / General queries remain with Vidya without triggering a handoff. |
-| `test_math_query_triggers_handoff` | Algebra / Equation queries invoke `transfer_to_maths_specialist`. |
-| `test_specialist_initialization_context` | Learner name, grade, and initial query are preserved across agents. |
-| `test_specialist_socratic_guidance` | Aryabhata guides students step-by-step rather than giving immediate answers. |
+| `test_math_query_triggers_handoff` | Algebra / Equation queries invoke `transfer_to_maths_specialist` (Samar). |
+| `test_quiz_query_triggers_handoff` | Quiz queries invoke `transfer_to_quiz_master` (Pooja). |
+| `test_math_specialist_initialization_context` | Learner name, grade, and query are preserved for Ramanujan. |
+| `test_quiz_master_initialization_context` | Learner name, grade, and topic are preserved for Pooja. |
+| `test_specialist_socratic_guidance` | Ramanujan guides students step-by-step rather than giving immediate answers. |
 | `test_specialist_hand_back_tool` | `hand_back_to_vidya` returns an `Assistant` instance with preserved state. |
+| `test_quiz_master_hand_back_tool` | `hand_back_to_vidya` returns an `Assistant` instance from Quiz Master. |
+| `test_cross_specialist_handoff` | Ramanujan ↔ Pooja cross-specialist handoff operates seamlessly. |
 
 Run tests with:
 ```bash
 cd backend
 uv run pytest tests/test_handoff.py -v
 ```
+
